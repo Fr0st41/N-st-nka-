@@ -496,7 +496,64 @@ def add_reply():
             ai_reply = ask_ai(reply_text.replace("@AI", "").replace("@ai", "").strip() or "Ahoj.")
             kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": "🤖 AI Asistent", "text": ai_reply, "timestamp": datetime.now().strftime("%H:%M")}}})
     return redirect('/')
+@app.route('/admin-db')
+def view_database():
+    # 1. Ochrana: Pustíme tam POUZE admina
+    if session.get('role') != 'admin':
+        return "<h1 style='color:red;'>Přístup odepřen! Nejsi admin.</h1>", 403
 
+    # 2. Vytáhneme úplně všechna data z obou kolekcí
+    všichni_uzivatele = list(kolekce_uzivatelu.find())
+    všechny_vzkazy = list(kolekce_vzkazu.find())
+
+    # 3. Jednoduché HTML pro zobrazení syrových dat v tabulkách
+    html_db = """
+    <!DOCTYPE html>
+    <html lang="cs">
+    <head>
+        <meta charset="utf-8">
+        <title>Tajný pohled do Databáze</title>
+        <style>
+            body { font-family: sans-serif; padding: 20px; background: #1e1e1e; color: #fff; }
+            table { border-collapse: collapse; width: 100%; margin-bottom: 40px; background: #2d2d2d; }
+            th, td { border: 1px solid #444; padding: 10px; text-align: left; }
+            th { background: #333; color: #4CAF50; }
+            a { color: #3498db; text-decoration: none; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <h1>🕵️‍♂️ Syrová data v MongoDB</h1>
+        <a href="/">⬅️ Zpět na nástěnku</a>
+
+        <h2>Kolekce: Uživatelé</h2>
+        <table>
+            <tr><th>Jméno</th><th>Role</th><th>Zašifrované heslo (Hash)</th></tr>
+            {% for u in uzivatele %}
+            <tr>
+                <td>{{ u.username }}</td>
+                <td>{{ u.role }}</td>
+                <td style="font-family: monospace; font-size: 0.8em; color: #aaa;">{{ u.password }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+
+        <h2>Kolekce: Vzkazy</h2>
+        <table>
+            <tr><th>Autor</th><th>Text</th><th>Reakce</th><th>Odpovědi</th></tr>
+            {% for v in vzkazy %}
+            <tr>
+                <td><b>{{ v.author }}</b></td>
+                <td>{{ v.text }}</td>
+                <td>{{ v.reactions }}</td>
+                <td>{{ v.replies | length }} odpovědí</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </body>
+    </html>
+    """
+    
+    return render_template_string(html_db, uzivatele=všichni_uzivatele, vzkazy=všechny_vzkazy)
 @app.route('/ai', methods=['GET', 'POST'])
 def ai_page():
     answer, question, error = None, None, None
