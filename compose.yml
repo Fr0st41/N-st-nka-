@@ -10,5 +10,5 @@ services:
       - db
 
   db:
-    image: mongo:latest
+    image: mongo:7
     restart: always
