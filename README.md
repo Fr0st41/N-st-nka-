@@ -1,43 +1,37 @@
-# 📌 Třídní Nástěnka s AI
+# ✨ Třídní Nástěnka & Arkáda
 
-Ahoj! Tohle je jednoduchá aplikace, která funguje jako digitální nástěnka. Můžeš na ni psát vzkazy, nahrávat obrázky a dokonce si povídat s umělou inteligencí. 
+Tohle je moderní webová nástěnka pro třídu, která neslouží jen k psaní obyčejných vzkazů. Je napojená na umělou inteligenci a obsahuje spoustu interaktivních miniher!
 
-Tady je jednoduchý návod, jak si ji zapnout u sebe na počítači (zvládne to každý, slibuju!).
+## 🎮 Co všechno nástěnka umí?
+* **Obyčejné vzkazy:** Psaní textu a nahrávání obrázků.
+* **AI Poradna:** Napiš do vzkazu nebo komentáře zavináč (`@AI něco...`) a školní robot ti odpoví.
+* **1v1 Duel:** Vyzvi někoho na Kámen, Nůžky, Papír.
+* **Kostky:** Hoď si a zjisti, kdo má větší štěstí.
+* **Hádej číslo:** Robot si myslí číslo (1-100) a lidi do komentářů hádají. Robot jim radí.
+* **Zneškodni bombu:** Vystavíš bombu se 4 drátky a někdo musí tipnout ten správný!
 
-## Krok 1: Příprava (Co musíš mít v počítači)
-Abys mohl aplikaci spustit, potřebuješ programovací jazyk Python. 
-1. Jdi na stránku [python.org/downloads](https://www.python.org/downloads/) a stáhni si nejnovější verzi.
-2. **DŮLEŽITÉ:** Při instalaci hned na první obrazovce **zaškrtni políčko „Add Python to PATH“** (Přidat Python do cesty). Pak instalaci normálně doklikej.
+## 🚀 Jak to spustit (Nasazení na server)
 
-## Krok 2: Stažení Nástěnky
-1. Na této stránce nahoře klikni na zelené tlačítko **Code** a vyber **Download ZIP**.
-2. Stažený ZIP soubor si rozbal někam do počítače (třeba na Plochu do složky `Nastenka`).
+Tento projekt je postaven na technologii **Docker Compose** a je plně připraven na školní servery (jako je Kuřim AI Dashboard).
 
-## Krok 3: Získání "Klíče" pro AI
-Aplikace potřebuje tajný klíč, aby se mohla spojit s umělou inteligencí.
-1. Otevři složku s rozbalenou nástěnkou.
-2. Vytvoř tam úplně obyčejný textový dokument (pravé tlačítko -> Nový -> Textový dokument).
-3. Pojmenuj ho přesně **`.env`** (nezapomeň na tu tečku na začátku a smaž koncovku .txt).
-4. Otevři tento soubor (třeba v Poznámkovém bloku) a vlož do něj toto:
+1. Ujistěte se, že máte v repozitáři tyto 3 soubory:
+   * `app.py` (samotná aplikace)
+   * `Dockerfile` (instrukce pro Python)
+   * `compose.yml` (nastavení pro spojení s MongoDB databází)
+2. Školní server si sám načte API klíče a propojí aplikaci s databází, stačí na Dashboardu kliknout na "Nasazovat".
 
-```text
-OPENAI_API_KEY=sem_vlozis_svuj_tajny_klic
-OPENAI_BASE_URL=[https://kurim.ithope.eu/v1](https://kurim.ithope.eu/v1)
-PORT=5000
-```
-*(Místo `sem_vlozis_svuj_tajny_klic` dej svůj opravdový klíč, který jsi dostal).*
+## 👑 Jak se stát Administrátorem
+Aplikace má systém účtů. Aby ses stal Adminem, nemusíš nikam do kódu psát tajné heslo. Funguje tu pravidlo **"Kdo dřív přijde, ten je šéf"**:
 
-## Krok 4: Jdeme to zapnout!
-1. Otevři složku s nástěnkou.
-2. Nahoře do řádku s adresou (tam, kde je napsáno např. `C:\Users\Plocha\Nastenka`) klikni, smaž to, napiš tam **`cmd`** a zmáčkni Enter. Otevře se ti černé okno.
-3. Do černého okna napiš tento příkaz a dej Enter (tím se stáhnou potřebné součástky):
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Až to doběhne, napiš poslední příkaz a dej Enter:
-   ```bash
-   python app.py
-   ```
-5. **Hotovo!** Aplikace teď běží. Otevři svůj internetový prohlížeč (Chrome, Edge...) a do adresního řádku napiš: **`http://localhost:5000`**
+1. Zapni nástěnku.
+2. V kolonce Registrace napiš jméno přesně: **`admin`**
+3. Zvol si libovolné heslo a zaregistruj se.
+4. Gratulujeme! Máš admin práva (můžeš mazat jakýkoliv vzkaz a připínat vzkazy nahoru). Nikdo jiný už se jako admin zaregistrovat nemůže.
 
-*Poznámka: Až budeš chtít nástěnku vypnout, stačí křížkem zavřít to černé okno.*
+## 🕵️‍♂️ Přístup do tajné databáze (Pro Admina)
+Zajímá tě, jaká hesla mají tvoji spolužáci, jaká je historie všech odpovědí, nebo chceš podvádět a zjistit si tajné číslo dřív, než ho uhodne někdo jiný? 😉
+
+1. Přihlas se do nástěnky jako účet `admin`.
+2. Do adresního řádku prohlížeče připiš za URL adresu **`/admin-db`**
+   *(Například: `https://tvuj-projekt.kurim.ithope.eu/admin-db`)*
+3. Dej Enter a otevře se ti přehledná tabulka s kompletním obsahem MongoDB databáze v reálném čase.
