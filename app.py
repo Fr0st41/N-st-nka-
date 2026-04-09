@@ -52,72 +52,103 @@ def ask_ai(prompt):
     except Exception as e:
         return f"Promiň, spím nebo mám poruchu. (Chyba API: {str(e)})"
 
-# --- VZHLED (HTML & CSS) ---
+# --- VZHLED (RESPONZIVNÍ HTML & CSS) ---
 HTML_MAIN = """
 <!DOCTYPE html>
 <html lang="cs">
 <head>
     <meta charset="utf-8">
-    <title>Digitální Nástěnka 📌</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Digitální Nástěnka ✨</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         
-        body { font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 0 0 40px 0; min-height: 100vh; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); color: #2c3e50; }
-        h1 { text-align: center; color: #1a252f; font-weight: 800; font-size: 2.5em; margin-top: 30px; letter-spacing: -1px;}
+        * { box-sizing: border-box; } /* Zabrání přetékání prvků */
         
-        .auth-bar { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); padding: 12px 20px; text-align: center; font-size: 0.9em; border-bottom: 1px solid rgba(255,255,255,0.5); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .auth-bar a { color: #e74c3c; font-weight: 600; text-decoration: none; margin-left: 15px; padding: 4px 10px; border-radius: 20px; background: rgba(231, 76, 60, 0.1); transition: 0.2s;}
+        body { font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 0 0 40px 0; min-height: 100vh; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); color: #2c3e50; }
+        h1 { text-align: center; color: #1a252f; font-weight: 800; font-size: 2.5em; margin-top: 30px; letter-spacing: -1px; padding: 0 10px;}
+        
+        .auth-bar { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); padding: 12px 20px; text-align: center; font-size: 0.9em; border-bottom: 1px solid rgba(255,255,255,0.5); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .auth-bar a { color: #e74c3c; font-weight: 600; text-decoration: none; margin-left: 15px; padding: 6px 12px; border-radius: 20px; background: rgba(231, 76, 60, 0.1); transition: 0.2s; display: inline-block;}
         .auth-bar a:hover { background: rgba(231, 76, 60, 0.2); }
         
-        .controls { text-align: center; margin-bottom: 30px; padding: 0 15px; }
-        .main-form { background: #ffffff; padding: 20px; border-radius: 16px; display: inline-block; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid #edf2f7; max-width: 100%; box-sizing: border-box; }
-        input[type="text"], input[type="password"] { padding: 10px 15px; border: 2px solid #e2e8f0; border-radius: 8px; margin: 5px; font-family: inherit; transition: 0.3s; outline: none; }
-        input[type="text"]:focus, input[type="password"]:focus { border-color: #3498db; }
-        button { padding: 10px 20px; background-color: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: inherit; transition: 0.2s; }
-        button:hover { background-color: #2980b9; transform: translateY(-1px); }
-        .ai-btn { display: inline-block; margin-left: 10px; padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 15px rgba(118, 75, 162, 0.3); }
+        .controls { text-align: center; margin-bottom: 20px; padding: 0 15px; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto;}
+        .main-form { background: #ffffff; padding: 20px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid #edf2f7; width: 100%; }
         
-        .filters { text-align: center; margin-bottom: 30px; }
-        .tag-btn { display: inline-block; background: #fff; padding: 6px 14px; border-radius: 20px; margin: 4px; text-decoration: none; color: #34495e; font-size: 0.85em; font-weight: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: 0.2s; border: 1px solid #e2e8f0; }
+        /* Flexboxy pro formuláře */
+        .form-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; }
+        .form-row-bottom { margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 15px;}
+        
+        input[type="text"], input[type="password"] { padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 8px; font-family: inherit; transition: 0.3s; outline: none; flex-grow: 1; }
+        input[type="text"]:focus, input[type="password"]:focus { border-color: #3498db; }
+        input[type="file"] { font-size: 0.85em; color: #7f8c8d; max-width: 100%; overflow: hidden; }
+        
+        button { padding: 12px 20px; background-color: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: inherit; transition: 0.2s; white-space: nowrap;}
+        button:hover { background-color: #2980b9; transform: translateY(-1px); }
+        
+        .ai-btn { padding: 12px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 15px rgba(118, 75, 162, 0.3); white-space: nowrap; text-align: center;}
+        
+        .filters { text-align: center; margin-bottom: 20px; padding: 0 10px; }
+        .tag-btn { display: inline-block; background: #fff; padding: 8px 16px; border-radius: 20px; margin: 4px; text-decoration: none; color: #34495e; font-size: 0.9em; font-weight: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: 0.2s; border: 1px solid #e2e8f0; }
         .tag-btn:hover { background: #3498db; color: #fff; border-color: #3498db; }
         
-        .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; padding: 10px 30px; max-width: 1400px; margin: 0 auto; }
-        .note-card { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(15px); padding: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,1); box-shadow: 0 10px 25px rgba(0,0,0,0.05); transition: transform 0.3s, box-shadow 0.3s; display: flex; flex-direction: column; }
-        .note-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
-        .note-card.pinned { border: 2px solid #e74c3c; background: #fffdfd; }
+        /* RESPONZIVNÍ GRID PRO KARTIČKY */
+        .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 10px 20px; max-width: 1400px; margin: 0 auto; }
         
-        /* STYL PRO DUEL KARTIČKU */
+        .note-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(15px); padding: 20px; border-radius: 16px; border: 1px solid #fff; box-shadow: 0 8px 20px rgba(0,0,0,0.06); transition: transform 0.3s; display: flex; flex-direction: column; width: 100%;}
+        .note-card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,0.1); }
+        .note-card.pinned { border: 2px solid #e74c3c; background: #fffdfd; }
         .note-card.duel { border: 2px solid #f39c12; background: linear-gradient(135deg, #fff 0%, #fdfbf7 100%); }
+        
         .duel-title { font-weight: 800; color: #e67e22; font-size: 1.2em; text-align: center; margin-bottom: 15px; }
         .duel-buttons { display: flex; justify-content: space-around; margin: 15px 0; }
-        .duel-btn { font-size: 2em; background: none; border: 2px solid #e2e8f0; border-radius: 50%; width: 60px; height: 60px; cursor: pointer; transition: 0.2s; }
+        .duel-btn { font-size: 2em; background: none; border: 2px solid #e2e8f0; border-radius: 50%; width: 60px; height: 60px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center;}
         .duel-btn:hover { background: #f39c12; border-color: #f39c12; transform: scale(1.1); }
-        .duel-result { text-align: center; font-size: 1.2em; font-weight: 800; padding: 10px; border-radius: 10px; margin-top: 10px; }
+        .duel-result { text-align: center; font-size: 1.1em; font-weight: 800; padding: 10px; border-radius: 10px; margin-top: 10px; }
         .duel-win { background: #d4edda; color: #155724; }
-        .duel-lose { background: #f8d7da; color: #721c24; }
         .duel-tie { background: #fff3cd; color: #856404; }
         
         .meta { font-size: 0.85em; color: #7f8c8d; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;}
-        .meta b { color: #2c3e50; font-weight: 600; }
         .note-text { font-size: 1.1em; line-height: 1.5; flex-grow: 1; word-wrap: break-word; color: #34495e; margin-bottom: 15px; }
-        .note-image { width: 100%; max-height: 200px; object-fit: cover; border-radius: 10px; margin-bottom: 15px; border: 1px solid #eee;}
+        .note-image { width: 100%; max-height: 250px; object-fit: cover; border-radius: 10px; margin-bottom: 15px; border: 1px solid #eee;}
         
-        .reactions-container { margin-bottom: 15px; }
-        .badge { display: inline-block; background: #f1f2f6; padding: 4px 8px; border-radius: 12px; font-size: 0.85em; margin-right: 5px; margin-bottom: 5px; color: #2c3e50; border: 1px solid #e2e8f0; }
-        .emoji-bar { display: flex; gap: 5px; background: #fff; padding: 5px; border-radius: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); width: fit-content; border: 1px solid #edf2f7;}
-        .btn-react { background: none; border: none; cursor: pointer; font-size: 1.2em; padding: 2px 5px; border-radius: 50%; transition: 0.2s; }
-        .btn-react:hover { background: #f1f2f6; transform: scale(1.2); }
+        .reactions-container { margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 5px;}
+        .badge { display: inline-block; background: #f1f2f6; padding: 5px 10px; border-radius: 15px; font-size: 0.85em; color: #2c3e50; border: 1px solid #e2e8f0; }
+        
+        .emoji-bar { display: flex; flex-wrap: wrap; gap: 5px; background: #fff; padding: 5px; border-radius: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border: 1px solid #edf2f7;}
+        .btn-react { background: none; border: none; cursor: pointer; font-size: 1.2em; padding: 4px; border-radius: 50%; transition: 0.2s; }
         
         .replies { background: #f8fafc; padding: 12px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e2e8f0;}
-        .reply-item { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #edf2f7; }
+        .reply-item { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #edf2f7; word-wrap: break-word;}
         .reply-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
         .reply-meta { font-size: 0.75em; color: #95a5a6; margin-bottom: 3px; font-weight: 600;}
         .reply-text { font-size: 0.95em; color: #475569; }
         
-        .del-btn { background: rgba(231, 76, 60, 0.1); color: #e74c3c; border: none; padding: 5px 10px; border-radius: 8px; cursor: pointer; transition: 0.2s;}
+        .del-btn { background: rgba(231, 76, 60, 0.1); color: #e74c3c; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-weight: bold; font-size: 0.9em;}
         .del-btn:hover { background: #e74c3c; color: white;}
-        .error-msg { background: #fee2e2; color: #991b1b; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #f87171; display: inline-block;}
+        .error-msg { background: #fee2e2; color: #991b1b; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #f87171; display: inline-block; width: 100%;}
+
+        /* ----- MOBILNÍ OPTIMALIZACE (MEDIA QUERIES) ----- */
+        @media (max-width: 600px) {
+            h1 { font-size: 2em; margin-top: 20px; }
+            .auth-bar { display: flex; flex-direction: column; gap: 10px; padding: 15px; }
+            .auth-bar a { margin-left: 0; }
+            
+            .controls { padding: 0 10px; }
+            .main-form { padding: 15px; }
+            .form-row { flex-direction: column; align-items: stretch; }
+            .form-row input[type="text"], .form-row input[type="password"] { width: 100% !important; }
+            .form-row-bottom { flex-direction: column; align-items: stretch; gap: 10px;}
+            
+            button, .ai-btn { width: 100%; display: block; margin: 0; }
+            
+            .board { grid-template-columns: 1fr; padding: 10px; gap: 15px;}
+            .note-card { padding: 15px; }
+            
+            .emoji-bar { justify-content: center; width: 100%; margin-bottom: 10px; }
+            .card-actions { flex-direction: column; align-items: stretch; }
+            .del-btn { width: 100%; margin-top: 5px; }
+        }
     </style>
     <script>
         function toggleDuel() {
@@ -130,11 +161,10 @@ HTML_MAIN = """
 <body>
     <div class="auth-bar">
         {% if session.username %}
-            👤 Přihlášen jako: <b>{{ session.username }}</b> 
-            {% if session.role == 'admin' %} <span style="color: #f39c12; font-weight: bold;">(Admin)</span> {% endif %}
+            <span>👤 <b>{{ session.username }}</b> {% if session.role == 'admin' %} <span style="color: #f39c12;">(Admin)</span> {% endif %}</span>
             <a href="/logout">Odhlásit se</a>
         {% else %}
-            Nejsi přihlášen. Můžeš číst, ale pro psaní vzkazů se musíš zaregistrovat.
+            <span>Nejsi přihlášen. Můžeš číst, pro psaní se musíš zaregistrovat.</span>
         {% endif %}
     </div>
 
@@ -145,46 +175,56 @@ HTML_MAIN = """
         
         {% if session.username %}
             <form method="POST" action="/add" class="main-form" enctype="multipart/form-data">
-                <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center;">
-                    <span style="font-weight: 600; color: #34495e;">{{ session.username }}</span>
-                    <input type="text" name="msg" placeholder="Napiš vzkaz... (@AI) (#tag)" required style="width: 300px;">
-                    <input type="file" name="image" accept="image/*" style="font-size: 0.8em; color: #7f8c8d;">
+                <div class="form-row">
+                    <input type="text" name="msg" placeholder="Napiš vzkaz... (@AI) (#tag)" required>
+                    <input type="file" name="image" accept="image/*">
                 </div>
                 
-                <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
-                    <label style="margin-right: 15px; font-weight: 600; cursor: pointer; color: #e67e22;">
-                        <input type="checkbox" name="is_duel" id="is-duel" onchange="toggleDuel()"> ⚔️ Vytvořit 1v1 Duel
+                <div class="form-row-bottom">
+                    <label style="font-weight: 600; cursor: pointer; color: #e67e22; display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" name="is_duel" id="is-duel" onchange="toggleDuel()"> ⚔️ 1v1 Duel
                     </label>
                     {% if session.role == 'admin' %}
-                        <label style="margin-right: 15px; font-size: 0.9em; color: #e74c3c; font-weight: 600;">
+                        <label style="color: #e74c3c; font-weight: 600; display: flex; align-items: center; gap: 5px;">
                             <input type="checkbox" name="is_important"> 📌 Důležité
                         </label>
                     {% endif %}
                     
-                    <div id="duel-options" style="display: none; margin-top: 10px; background: #fdfbf7; padding: 10px; border-radius: 8px; border: 1px solid #f39c12;">
-                        Vyber svou tajnou zbraň:<br>
-                        <label><input type="radio" name="duel_move" value="🪨" checked> 🪨 Kámen</label>
-                        <label><input type="radio" name="duel_move" value="✂️"> ✂️ Nůžky</label>
-                        <label><input type="radio" name="duel_move" value="📄"> 📄 Papír</label>
+                    <div id="duel-options" style="display: none; width: 100%; background: #fdfbf7; padding: 15px; border-radius: 8px; border: 1px solid #f39c12; text-align: center; margin-top: 10px;">
+                        <span style="display:block; margin-bottom: 10px; font-weight: bold;">Vyber svou tajnou zbraň:</span>
+                        <div style="display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
+                            <label><input type="radio" name="duel_move" value="🪨" checked> 🪨 Kámen</label>
+                            <label><input type="radio" name="duel_move" value="✂️"> ✂️ Nůžky</label>
+                            <label><input type="radio" name="duel_move" value="📄"> 📄 Papír</label>
+                        </div>
                     </div>
 
-                    <div style="margin-top: 15px;">
-                        <button type="submit">Vystavit vzkaz</button>
-                        <a href="/ai" class="ai-btn">🤖 AI Poradna</a>
+                    <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap;">
+                        <button type="submit" style="flex-grow: 1;">Vystavit vzkaz</button>
+                        <a href="/ai" class="ai-btn" style="flex-grow: 1;">🤖 AI Poradna</a>
                     </div>
                 </div>
             </form>
         {% else %}
             <div class="main-form">
                 <h3 style="margin-top: 0; color: #2c3e50;">Přihlášení / Registrace</h3>
-                <form method="POST" action="/auth" style="display:flex; gap: 10px; justify-content: center;">
-                    <input type="text" name="username" placeholder="Jméno" required style="width: 120px;">
-                    <input type="password" name="password" placeholder="Heslo" required style="width: 120px;">
-                    <button type="submit" name="action" value="login">Přihlásit</button>
-                    <button type="submit" name="action" value="register" style="background: #2ecc71;">Registrovat</button>
+                <form method="POST" action="/auth" class="form-row">
+                    <input type="text" name="username" placeholder="Jméno" required>
+                    <input type="password" name="password" placeholder="Heslo" required>
+                    <div style="display: flex; gap: 10px; width: 100%;">
+                        <button type="submit" name="action" value="login" style="flex: 1;">Přihlásit</button>
+                        <button type="submit" name="action" value="register" style="background: #2ecc71; flex: 1;">Registrovat</button>
+                    </div>
                 </form>
             </div>
         {% endif %}
+    </div>
+
+    <div class="filters">
+        <a href="/" class="tag-btn" style="background: #2c3e50; color: white;">Vše</a>
+        {% for tag in all_tags %}
+            <a href="/?tag={{ tag }}" class="tag-btn">#{{ tag }}</a>
+        {% endfor %}
     </div>
 
     <div class="board" id="board-container">
@@ -211,14 +251,14 @@ HTML_MAIN = """
                                 <button type="submit" name="move" value="📄" class="duel-btn" title="Papír">📄</button>
                             </form>
                         {% elif not session.username %}
-                            <div style="text-align: center; font-size: 0.8em; color: #e74c3c;">Pro přijetí výzvy se musíš přihlásit.</div>
+                            <div style="text-align: center; font-size: 0.85em; color: #e74c3c; padding: 10px;">Pro přijetí výzvy se přihlas.</div>
                         {% else %}
-                            <div style="text-align: center; font-size: 0.8em; color: #f39c12;">Nemůžeš hrát sám se sebou.</div>
+                            <div style="text-align: center; font-size: 0.85em; color: #f39c12; padding: 10px;">Nemůžeš hrát sám se sebou.</div>
                         {% endif %}
                         
                     {% else %}
-                        <div style="text-align: center; font-size: 1.5em; margin: 10px 0;">
-                            <b>{{ msg.author }}</b> ({{ msg.p1_move }}) <br> <span style="font-size: 0.6em; color: #95a5a6;">vs</span> <br> <b>{{ msg.p2 }}</b> ({{ msg.p2_move }})
+                        <div style="text-align: center; font-size: 1.3em; margin: 15px 0;">
+                            <b>{{ msg.author }}</b> ({{ msg.p1_move }}) <br> <span style="font-size: 0.7em; color: #95a5a6;">vs</span> <br> <b>{{ msg.p2 }}</b> ({{ msg.p2_move }})
                         </div>
                         
                         {% if msg.winner == 'TIE' %}
@@ -239,15 +279,14 @@ HTML_MAIN = """
                     {% endfor %}
                 </div>
                 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <form method="POST" action="/react" class="emoji-bar">
+                <div class="card-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; gap: 10px;">
+                    <form method="POST" action="/react" class="emoji-bar" style="margin: 0;">
                         <input type="hidden" name="note_id" value="{{ msg.id }}">
                         <button type="submit" name="emoji" value="👍" class="btn-react">👍</button>
                         <button type="submit" name="emoji" value="❤️" class="btn-react">❤️</button>
                         <button type="submit" name="emoji" value="😂" class="btn-react">😂</button>
                         <button type="submit" name="emoji" value="😮" class="btn-react">😮</button>
                         <button type="submit" name="emoji" value="😢" class="btn-react">😢</button>
-                        <button type="submit" name="emoji" value="🙏" class="btn-react">🙏</button>
                     </form>
                     
                     {% if session.username == msg.author or session.role == 'admin' %}
@@ -272,8 +311,8 @@ HTML_MAIN = """
                 {% if session.username %}
                 <form method="POST" action="/reply" style="display:flex; gap:5px; margin-top:auto;">
                     <input type="hidden" name="note_id" value="{{ msg.id }}">
-                    <input type="text" name="reply_text" placeholder="Napsat odpověď..." required style="flex-grow:1; padding:8px; border:1px solid #e2e8f0; border-radius:6px; font-size: 0.85em;">
-                    <button type="submit" style="background:#2c3e50; padding: 8px 12px; border-radius:6px; color: white; border: none; cursor: pointer;">↪</button>
+                    <input type="text" name="reply_text" placeholder="Odpověz..." required style="flex-grow:1; padding:10px; border:1px solid #e2e8f0; border-radius:8px; font-size: 0.9em;">
+                    <button type="submit" style="background:#2c3e50; padding: 10px 15px; border-radius:8px; color: white; border: none; cursor: pointer;">↪</button>
                 </form>
                 {% endif %}
             </div>
@@ -303,7 +342,7 @@ HTML_MAIN = """
 </html>
 """
 
-HTML_AI = """<!DOCTYPE html><html lang="cs"><head><meta charset="utf-8"><title>AI Poradna</title><style>body { font-family: sans-serif; margin: 40px; background: #eef2f5; } .container { max-width: 600px; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); } input { padding: 10px; width: 70%; border: 1px solid #ccc; border-radius: 5px; } button { padding: 10px 20px; background: #007BFF; color: white; border: none; border-radius: 5px; cursor: pointer; } .result { background: #f8f9fa; padding: 15px; border-left: 5px solid #007BFF; margin-top: 20px; } .error { background: #ffe6e6; padding: 15px; border-left: 5px solid #d9534f; margin-top: 20px; color: #a94442; }</style></head><body><div class="container"><h1 style="color: #007BFF; margin-top: 0;">Online AI Poradna 🤖</h1><form method="POST" action="/ai"><input type="text" name="query" placeholder="Zeptej se umělé inteligence..." required> <button type="submit">Odeslat</button></form><br><a href="/" style="font-weight: bold; color: #333; text-decoration: none;">⬅️ Zpět na Nástěnku</a>{% if answer %}<div class="result"><p><strong>Dotaz:</strong> {{ question }}</p><p><strong>AI:</strong> {{ answer }}</p></div>{% elif error %}<div class="error"><p><strong>Chyba:</strong> {{ error }}</p></div>{% endif %}</div></body></html>"""
+HTML_AI = """<!DOCTYPE html><html lang="cs"><head><meta charset="utf-8"><title>AI Poradna</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body { font-family: sans-serif; margin: 0; padding: 20px; background: #eef2f5; } .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); } input { padding: 12px; width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 10px;} button { padding: 12px 20px; width: 100%; background: #007BFF; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;} .result { background: #f8f9fa; padding: 15px; border-left: 5px solid #007BFF; margin-top: 20px; word-wrap: break-word;} .error { background: #ffe6e6; padding: 15px; border-left: 5px solid #d9534f; margin-top: 20px; color: #a94442; } a.back-link { display: inline-block; margin-top: 15px; font-weight: bold; color: #333; text-decoration: none; }</style></head><body><div class="container"><h2 style="color: #007BFF; margin-top: 0;">Online AI Poradna 🤖</h2><form method="POST" action="/ai"><input type="text" name="query" placeholder="Zeptej se AI..." required> <button type="submit">Odeslat dotaz</button></form><a href="/" class="back-link">⬅️ Zpět na Nástěnku</a>{% if answer %}<div class="result"><p><strong>Dotaz:</strong> {{ question }}</p><p><strong>AI:</strong> {{ answer }}</p></div>{% elif error %}<div class="error"><p><strong>Chyba:</strong> {{ error }}</p></div>{% endif %}</div></body></html>"""
 
 # --- ROUTOVÁNÍ ---
 @app.route('/', methods=['GET'])
@@ -387,17 +426,15 @@ def add_note():
             "type": "duel" if is_duel else "normal"
         }
 
-        # Pokud je to duel, přidáme speciální data
         if is_duel:
-            new_note["duel_state"] = "waiting" # waiting / finished
-            new_note["p1_move"] = duel_move    # To co vybral autor
-            new_note["p2"] = None              # Zatím nikdo
+            new_note["duel_state"] = "waiting"
+            new_note["p1_move"] = duel_move
+            new_note["p2"] = None
             new_note["p2_move"] = None
             new_note["winner"] = None
 
         kolekce_vzkazu.insert_one(new_note)
 
-        # AI nereaguje na duely, jen na normální text
         if "@AI" in text.upper() and not is_duel:
             prompt = text.replace("@AI", "").replace("@ai", "").strip()
             ai_reply = ask_ai(prompt if prompt else "Ahoj.")
@@ -405,13 +442,12 @@ def add_note():
             
     return redirect('/')
 
-# --- LOGIKA PRO VYHODNOCENÍ DUELU ---
 @app.route('/play_duel', methods=['POST'])
 def play_duel():
     if 'username' not in session: return redirect('/')
     
     note_id = request.form.get('note_id')
-    p2_move = request.form.get('move') # Zbraň soupeře
+    p2_move = request.form.get('move')
     p2_name = session['username']
     
     duel = kolekce_vzkazu.find_one({"id": note_id, "type": "duel", "duel_state": "waiting"})
@@ -420,26 +456,11 @@ def play_duel():
         p1_move = duel['p1_move']
         p1_name = duel['author']
         
-        # Kdo vyhrál?
-        if p1_move == p2_move:
-            winner = 'TIE'
-        elif (p1_move == '🪨' and p2_move == '✂️') or \
-             (p1_move == '✂️' and p2_move == '📄') or \
-             (p1_move == '📄' and p2_move == '🪨'):
-            winner = p1_name
-        else:
-            winner = p2_name
+        if p1_move == p2_move: winner = 'TIE'
+        elif (p1_move == '🪨' and p2_move == '✂️') or (p1_move == '✂️' and p2_move == '📄') or (p1_move == '📄' and p2_move == '🪨'): winner = p1_name
+        else: winner = p2_name
             
-        # Aktualizace v databázi
-        kolekce_vzkazu.update_one(
-            {"id": note_id},
-            {"$set": {
-                "duel_state": "finished",
-                "p2": p2_name,
-                "p2_move": p2_move,
-                "winner": winner
-            }}
-        )
+        kolekce_vzkazu.update_one({"id": note_id}, {"$set": {"duel_state": "finished", "p2": p2_name, "p2_move": p2_move, "winner": winner}})
         
     return redirect('/')
 
