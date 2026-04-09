@@ -151,11 +151,29 @@ HTML_MAIN = """
         }
     </style>
     <script>
-        function toggleDuel() {
-            var duelOptions = document.getElementById('duel-options');
-            var isDuel = document.getElementById('is-duel').checked;
-            duelOptions.style.display = isDuel ? 'block' : 'none';
-        }
+        setInterval(function() {
+            // Zkontrolujeme, na co má uživatel zrovna kliknuto
+            let active = document.activeElement;
+            let isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'PASSWORD');
+
+            if (!isTyping) {
+                // cache: 'no-store' je ten magický příkaz, který zakáže prohlížeči používat stará data!
+                fetch(window.location.href, { cache: "no-store" })
+                    .then(response => response.text())
+                    .then(html => {
+                        let parser = new DOMParser();
+                        let doc = parser.parseFromString(html, 'text/html');
+                        let newBoard = doc.getElementById('board-container');
+                        let currentBoard = document.getElementById('board-container');
+                        
+                        // Přepíšeme to jen tehdy, když se obsah fakt změnil (aby to neblikalo zbytečně)
+                        if (newBoard && currentBoard.innerHTML !== newBoard.innerHTML) {
+                            currentBoard.innerHTML = newBoard.innerHTML;
+                        }
+                    })
+                    .catch(err => console.log('Chyba refreshu:', err));
+            }
+        }, 5000);
     </script>
 </head>
 <body>
