@@ -1,46 +1,69 @@
-import os
-import random
-import base64
-import uuid
-import re
-from datetime import datetime
+# ==========================================
+# 1. IMPORTY (Nástroje, které aplikace potřebuje)
+# ==========================================
+import os                  # Pro čtení tajných hesel ze serveru (proměnné prostředí)
+import random              # Generování náhody (hody kostkou, míchání drátků u bomby)
+import base64              # Převádí nahrané obrázky na dlouhý text, aby šly uložit do databáze
+import uuid                # Generuje unikátní kódy pro každý papírek (např. 'a7b3c9d1')
+import re                  # Hledání speciálních znaků (např. hashtagů v textu)
+from datetime import datetime # Zjišťování aktuálního času (např. 14:30)
+
+# Knihovny pro běh samotného webu (Flask)
 from flask import Flask, request, render_template_string, redirect, session
 from werkzeug.security import generate_password_hash, check_password_hash
+
+# Knihovny pro umělou inteligenci a databázi
 from openai import OpenAI
 import httpx
 from pymongo import MongoClient
 
+# Založení aplikace
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+# Tajný klíč pro bezpečné přihlašování (vytvoří se nový při každém startu)
+app.secret_key = os.urandom(24) 
 
-# --- KONFIGURACE AI ---
+# ==========================================
+# 2. NASTAVENÍ UMĚLÉ INTELIGENCE (AI)
+# ==========================================
+# Bere si API klíč a adresu ze školního serveru
 api_key = os.environ.get("OPENAI_API_KEY")
 base_url = os.environ.get("OPENAI_BASE_URL")
 MODEL_NAME = "gemma3:27b"
 
+# Vytvoření "klienta", přes kterého si budeme s AI psát
 client = OpenAI(
     api_key=api_key,
     base_url=base_url,
     http_client=httpx.Client(verify=False)
 )
 
-# --- PŘIPOJENÍ K DATABÁZI ---
+# ==========================================
+# 3. PŘIPOJENÍ K DATABÁZI (MongoDB)
+# ==========================================
+# Řekneme aplikaci, kde databáze bydlí (adresa 'db')
 mongo_uri = os.environ.get("MONGO_URI", "mongodb://db:27017/")
 mongo_client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
-db = mongo_client.nastenka_databaze
-kolekce_vzkazu = db.vzkazy
-kolekce_uzivatelu = db.uzivatele
 
-# --- FUNKCE AI S PAMĚTÍ (RAG) ---
+# Vytvoříme hlavní databázi a v ní dvě "složky" (kolekce)
+db = mongo_client.nastenka_databaze
+kolekce_vzkazu = db.vzkazy       # Sem ukládáme papírky
+kolekce_uzivatelu = db.uzivatele # Sem ukládáme registrované lidi
+
+# ==========================================
+# 4. FUNKCE PRO AI (S PAMĚTÍ - RAG)
+# ==========================================
 def ask_ai(prompt):
     try:
+        # Než se zeptáme AI, vytáhneme posledních 20 vzkazů, aby věděla, o čem se třída baví
         nedavne_vzkazy = list(kolekce_vzkazu.find().sort("cas_vytvoreni", -1).limit(20))
         kontext = "Historie nástěnky:\n"
         for m in nedavne_vzkazy:
             kontext += f"- {m.get('author', 'Někdo')}: {m.get('text', '')}\n"
 
+        # Příkaz, jak se má AI chovat
         systemovy_pokyn = "Jsi vtipný asistent na třídní nástěnce. Odpovídej stručně.\n" + kontext
 
+        # Odeslání dotazu a čekání na odpověď
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[
@@ -50,9 +73,12 @@ def ask_ai(prompt):
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"Promiň, spím nebo mám poruchu. (Chyba API: {str(e)})"
+        return f"Promiň, spím nebo mám poruchu. (Chyba: {str(e)})"
 
-# --- VZHLED (RESPONZIVNÍ HTML & CSS & ANIMACE & MODALY) ---
+# ==========================================
+# 5. VZHLED WEBU (HTML, CSS a JavaScript)
+# ==========================================
+# Proměnná HTML_MAIN obsahuje celý vizuál (barvy, animace, tlačítka a Focus mód).
 HTML_MAIN = """
 <!DOCTYPE html>
 <html lang="cs">
@@ -147,9 +173,7 @@ HTML_MAIN = """
         .meta { font-size: 0.85em; color: #7f8c8d; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; padding-right: 40px;}
         .note-text { font-size: 1.1em; line-height: 1.5; flex-grow: 1; word-wrap: break-word; color: #34495e; margin-bottom: 15px; }
         
-        /* OBRÁZKY NA NÁSTĚNCE (OŘÍZNUTÉ) */
         .note-image { width: 100%; max-height: 200px; object-fit: cover; border-radius: 10px; margin-bottom: 15px; border: 1px solid #eee; background: #f8f9fa;}
-        /* OBRÁZKY VE ZVĚTŠENÉM REŽIMU (CELÉ, NEOŘÍZNUTÉ) */
         .note-card.expanded .note-image { max-height: 50vh; object-fit: contain; }
         
         .reactions-container { margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 5px;}
@@ -162,7 +186,6 @@ HTML_MAIN = """
         .del-btn { background: rgba(231, 76, 60, 0.1); color: #e74c3c; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-weight: bold; font-size: 0.9em;}
         .del-btn:hover { background: #e74c3c; color: white;}
 
-        /* CSS OPRAVY PRO MOBIL */
         @media (max-width: 600px) {
             h1 { font-size: 2em; margin-top: 20px; }
             .auth-bar { display: flex; flex-direction: column; gap: 10px; padding: 15px; }
@@ -178,13 +201,12 @@ HTML_MAIN = """
             .emoji-bar { justify-content: center; width: 100%; margin-bottom: 10px; }
             .card-actions { flex-direction: column; align-items: stretch; }
             .del-btn { width: 100%; margin-top: 5px; }
-            
-            /* OPRAVA: IKONY HER NA MOBILU UŽ NEJSOU NAMÁČKLÉ */
             .type-selector { gap: 8px; }
             .type-label { flex: 1 1 40%; text-align: center; padding: 10px 5px; font-size: 0.85em; display: block;}
         }
     </style>
     <script>
+        // Přepíná viditelnost formulářů podle toho, jakou minihru uživatel nahoře zaklikne
         function toggleForms() {
             var type = document.querySelector('input[name="post_type"]:checked').value;
             document.getElementById('normal-options').style.display = (type === 'normal') ? 'block' : 'none';
@@ -194,13 +216,15 @@ HTML_MAIN = """
             document.getElementById('dice-options').style.display = (type === 'dice') ? 'block' : 'none';
         }
         
-        let isExpanded = false;
+        // FOCUS MÓD: Funkce pro zvětšení papírku
+        let isExpanded = false; // Pamatuje si, jestli je něco zvětšené
         function openCard(id) {
             document.querySelectorAll('.note-card.expanded').forEach(c => c.classList.remove('expanded'));
-            document.getElementById('card-' + id).classList.add('expanded');
-            document.getElementById('overlay').classList.add('active');
+            document.getElementById('card-' + id).classList.add('expanded'); // Zvětší konkrétní lístek
+            document.getElementById('overlay').classList.add('active'); // Ztmaví pozadí
             isExpanded = true;
         }
+        // FOCUS MÓD: Funkce pro zavření papírku
         function closeCards() {
             document.querySelectorAll('.note-card.expanded').forEach(c => c.classList.remove('expanded'));
             document.getElementById('overlay').classList.remove('active');
@@ -235,7 +259,7 @@ HTML_MAIN = """
                     <label><input type="radio" name="post_type" value="bomb" class="type-radio" onchange="toggleForms()"><span class="type-label">💣 Bomba</span></label>
                 </div>
 
-                <div id="normal-options"><div class="form-row"><input type="text" name="msg" placeholder="Napiš vzkaz... (@AI) (#tag)"><input type="file" name="image" accept="image/*" style="font-size:0.8em; max-width:200px;"></div></div>
+                <div id="normal-options"><div class="form-row"><input type="text" name="msg" placeholder="Napiš vzkaz... (@AI)"><input type="file" name="image" accept="image/*" style="font-size:0.8em; max-width:200px;"></div></div>
                 <div id="duel-options" style="display: none; background: #fdfbf7; padding: 15px; border-radius: 12px; border: 2px dashed #f39c12; text-align: center;"><span style="display:block; margin-bottom: 10px; font-weight: 800; color: #d35400;">Zvol svou tajnou zbraň:</span><div style="display: flex; justify-content: center; gap: 10px;"><label><input type="radio" name="duel_move" value="🪨" checked> 🪨 Kámen</label><label><input type="radio" name="duel_move" value="✂️"> ✂️ Nůžky</label><label><input type="radio" name="duel_move" value="📄"> 📄 Papír</label></div></div>
                 <div id="dice-options" style="display: none; background: #f4ebf9; padding: 15px; border-radius: 12px; border: 2px dashed #9b59b6; text-align: center;"><span style="font-weight: 800; color: #8e44ad;">Hoď kostkou a uvidíme, jestli tě někdo překoná! 🎲</span></div>
                 <div id="guess-options" style="display: none; background: #ebf5fb; padding: 15px; border-radius: 12px; border: 2px dashed #3498db; text-align: center;"><span style="display:block; font-weight: 800; color: #2980b9;">Systém tajně vymyslí číslo od 1 do 100.</span></div>
@@ -245,7 +269,6 @@ HTML_MAIN = """
                     {% if session.role == 'admin' %} <label style="color: #e74c3c; font-weight: 600;"><input type="checkbox" name="is_important"> 📌 Důležité</label> {% endif %}
                     <div style="display: flex; gap: 10px; width: 100%;">
                         <button type="submit" style="flex-grow: 1;">Přidat na nástěnku</button>
-                        <a href="/ai" class="ai-btn">🤖 AI Poradna</a>
                     </div>
                 </div>
             </form>
@@ -391,9 +414,12 @@ HTML_MAIN = """
     <script>
         setInterval(function() {
             let active = document.activeElement;
+            // Detekuje, jestli zrovna nepíšeš do formuláře
             let isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'PASSWORD');
             
+            // Nepřenačítá data, pokud zrovna píšeš, nebo pokud máš rozkliknutý papírek přes půl obrazovky (isExpanded)
             if (!isTyping && !isExpanded) {
+                // cache: no-store přikazuje prohlížeči, ať si nevymýšlí a stáhne čistá data ze serveru
                 fetch(window.location.href, { cache: "no-store" })
                     .then(response => response.text())
                     .then(html => {
@@ -401,6 +427,7 @@ HTML_MAIN = """
                         let doc = parser.parseFromString(html, 'text/html');
                         let newBoard = doc.getElementById('board-container');
                         let currentBoard = document.getElementById('board-container');
+                        // Vymění nástěnku za novou, jen pokud se na ní něco změnilo
                         if (newBoard && currentBoard.innerHTML !== newBoard.innerHTML) {
                             currentBoard.innerHTML = newBoard.innerHTML;
                         }
@@ -412,14 +439,23 @@ HTML_MAIN = """
 </html>
 """
 
-# --- ROUTOVÁNÍ ---
+
+# ==========================================
+# 6. ROUTOVÁNÍ (Co dělá jaká adresa webu)
+# ==========================================
+
+# Hlavní stránka (Načtení všech zpráv z databáze)
 @app.route('/', methods=['GET'])
 def home():
     error = request.args.get('error')
-    try: vzkazy_z_db = list(kolekce_vzkazu.find().sort([("is_pinned", -1), ("cas_vytvoreni", -1)]))
-    except Exception: vzkazy_z_db = []
+    try: 
+        # Získání dat, řazení nejdřív podle PINu, pak podle času
+        vzkazy_z_db = list(kolekce_vzkazu.find().sort([("is_pinned", -1), ("cas_vytvoreni", -1)]))
+    except Exception: 
+        vzkazy_z_db = []
     return render_template_string(HTML_MAIN, messages=vzkazy_z_db, error=error)
 
+# Zpracování registrace a loginu
 @app.route('/auth', methods=['POST'])
 def auth():
     akce = request.form.get('action')
@@ -430,20 +466,27 @@ def auth():
 
     if akce == 'register':
         if kolekce_uzivatelu.find_one({"username": username}): return redirect('/?error=Jméno zabrané!')
+        
+        # Vytvoření admina (kdo první založí 'admin', je admin)
         role = 'admin' if username.lower() == 'admin' and not kolekce_uzivatelu.find_one({"role": "admin"}) else 'user'
         
+        # POZOR: Pro školní účely ukládáme heslo v čistém textu, aby šlo číst v databázi!
         kolekce_uzivatelu.insert_one({"username": username, "password": password, "role": role})
         session['username'] = username; session['role'] = role
+        
     elif akce == 'login':
         user = kolekce_uzivatelu.find_one({"username": username})
+        # Kontrola hesla podle uloženého čistého textu
         if user and user['password'] == password:
             session['username'] = user['username']; session['role'] = user['role']
         else: return redirect('/?error=Špatné jméno nebo heslo!')
     return redirect('/')
 
+# Odhlášení ze session
 @app.route('/logout')
 def logout(): session.clear(); return redirect('/')
 
+# Zpracování "Přidat papírek"
 @app.route('/add', methods=['POST'])
 def add_note():
     if 'username' not in session: return redirect('/?error=Musíš být přihlášený!')
@@ -451,7 +494,7 @@ def add_note():
     post_type = request.form.get('post_type', 'normal')
     text = request.form.get('msg', '')
     
-    note_id = uuid.uuid4().hex[:8]
+    note_id = uuid.uuid4().hex[:8] # Náhodné ID dokumentu
     new_note = {
         "id": note_id, "author": session['username'], "timestamp": datetime.now().strftime("%H:%M"),
         "cas_vytvoreni": datetime.now(), "replies": [], "reactions": {},
@@ -459,32 +502,49 @@ def add_note():
         "type": post_type
     }
 
+    # Podle post_type přidáme specifická data pro hry
     if post_type == 'normal':
         if not text: return redirect('/')
         file = request.files.get('image')
         new_note["text"] = text
         if file and file.filename: new_note["image"] = "data:" + file.content_type + ";base64," + base64.b64encode(file.read()).decode('utf-8')
+        # Odchytnutí @AI
         if "@AI" in text.upper():
             ai_reply = ask_ai(text.replace("@AI", "").replace("@ai", "").strip() or "Ahoj.")
             new_note["replies"].append({"author": "🤖 AI Asistent", "text": ai_reply, "timestamp": datetime.now().strftime("%H:%M")})
+    
     elif post_type == 'duel':
-        new_note["duel_state"] = "waiting"; new_note["p1_move"] = request.form.get('duel_move', '🪨')
+        new_note["duel_state"] = "waiting"
+        new_note["p1_move"] = request.form.get('duel_move', '🪨')
+    
     elif post_type == 'dice':
-        new_note["dice_state"] = "waiting"; new_note["p1_roll"] = random.randint(1, 6)
+        new_note["dice_state"] = "waiting"
+        new_note["p1_roll"] = random.randint(1, 6) # Hod kostkou na serveru
+        
     elif post_type == 'guess':
-        new_note["guess_state"] = "active"; new_note["secret_number"] = random.randint(1, 100)
+        new_note["guess_state"] = "active"
+        new_note["secret_number"] = random.randint(1, 100) # Tajné číslo na serveru
+        
     elif post_type == 'bomb':
-        new_note["bomb_state"] = "active"; new_note["cut_wires"] = []
-        colors = ['red', 'blue', 'green', 'yellow']; random.shuffle(colors)
-        new_note["defuse_wire"] = colors[0]; new_note["boom_wire"] = colors[1]
+        new_note["bomb_state"] = "active"
+        new_note["cut_wires"] = []
+        colors = ['red', 'blue', 'green', 'yellow']
+        random.shuffle(colors)
+        new_note["defuse_wire"] = colors[0] # Správný drát
+        new_note["boom_wire"] = colors[1]   # Výbušný drát
 
     kolekce_vzkazu.insert_one(new_note)
     return redirect('/')
+
+# ==========================================
+# 7. LOGIKA HER
+# ==========================================
 
 @app.route('/play_duel', methods=['POST'])
 def play_duel():
     if 'username' not in session: return redirect('/')
     duel = kolekce_vzkazu.find_one({"id": request.form.get('note_id'), "type": "duel", "duel_state": "waiting"})
+    # Kontrola aby hráč nehrál proti sobě
     if duel and duel['author'] != session['username']:
         p1, p2 = duel['p1_move'], request.form.get('move')
         win = 'TIE' if p1 == p2 else duel['author'] if (p1=='🪨' and p2=='✂️') or (p1=='✂️' and p2=='📄') or (p1=='📄' and p2=='🪨') else session['username']
@@ -513,45 +573,65 @@ def cut_wire():
         kolekce_vzkazu.update_one({"id": bomb['id']}, upd)
     return redirect('/')
 
+# ==========================================
+# 8. ODPOVĚDI (A Robot pro hádání čísel)
+# ==========================================
 @app.route('/reply', methods=['POST'])
 def add_reply():
     if 'username' not in session: return redirect('/')
     note_id, text = request.form.get('note_id'), request.form.get('reply_text')
     if not text or not note_id: return redirect('/')
     
+    # 1. Normální přidání odpovědi
     kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": session['username'], "text": text, "timestamp": datetime.now().strftime("%H:%M")}}})
+    
     msg = kolekce_vzkazu.find_one({"id": note_id})
+    
+    # 2. Reakce robota na Hádání čísla
     if msg.get('type') == 'guess' and msg.get('guess_state') == 'active':
         try:
             tip, tajne = int(text.strip()), msg['secret_number']
-            if tip == tajne: kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": "🤖 Rozhodčí", "text": f"🎉 BINGO! {session['username']} uhodl(a) číslo {tajne}!", "timestamp": datetime.now().strftime("%H:%M")}}, "$set": {"guess_state": "finished"}})
+            if tip == tajne: 
+                kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": "🤖 Rozhodčí", "text": f"🎉 BINGO! {session['username']} uhodl(a) číslo {tajne}!", "timestamp": datetime.now().strftime("%H:%M")}}, "$set": {"guess_state": "finished"}})
             else:
                 smer = "⬆️ víc" if tip < tajne else "⬇️ míň"
                 kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": "🤖 Rozhodčí", "text": f"{smer} než {tip}!", "timestamp": datetime.now().strftime("%H:%M")}}})
-        except ValueError: pass
+        except ValueError: pass # Ignoruje se, pokud uživatel napíše písmena
+        
+    # 3. Odpověď umělé inteligence
     elif msg.get('type') == 'normal' and "@AI" in text.upper():
         ai_reply = ask_ai(text.replace("@AI", "").replace("@ai", "").strip() or "Ahoj.")
         kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": "🤖 AI Asistent", "text": ai_reply, "timestamp": datetime.now().strftime("%H:%M")}}})
     return redirect('/')
 
+# ==========================================
+# 9. POMOCNÉ FUNKCE A DATABÁZE ADMINA
+# ==========================================
 @app.route('/delete', methods=['POST'])
 def delete_note():
     if 'username' not in session: return redirect('/')
     vzkaz = kolekce_vzkazu.find_one({"id": request.form.get('note_id')})
+    # Smazat může jen ten, kdo to vytvořil, nebo Admin
     if vzkaz and (vzkaz['author'] == session['username'] or session.get('role') == 'admin'): kolekce_vzkazu.delete_one({"id": vzkaz['id']})
     return redirect(request.referrer or '/')
 
 @app.route('/react', methods=['POST'])
 def react_note():
     emoji = request.form.get('emoji')
+    # $inc znamená "Zvyš číslo o 1"
     if emoji in ['👍', '❤️', '😂', '😮']: kolekce_vzkazu.update_one({"id": request.form.get('note_id')}, {"$inc": {f"reactions.{emoji}": 1}})
     return redirect(request.referrer or '/')
 
 @app.route('/admin-db')
 def view_database():
+    # Zabezpečení stránky!
     if session.get('role') != 'admin': return "<h1 style='color:red;'>Přístup odepřen! Nejsi admin.</h1>", 403
+    
     html_db = """<!DOCTYPE html><html lang="cs"><head><meta charset="utf-8"><title>Tajný pohled</title><style>body { font-family: sans-serif; padding: 20px; background: #1e1e1e; color: #fff; } table { border-collapse: collapse; width: 100%; margin-bottom: 40px; background: #2d2d2d; box-shadow: 0 4px 8px rgba(0,0,0,0.5);} th, td { border: 1px solid #444; padding: 12px; text-align: left; vertical-align: top;} th { background: #3498db; color: #fff; font-size: 1.1em;} a.back { color: #fff; background: #e74c3c; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; margin-bottom: 20px;} .comment-box { background: #1a1a1a; padding: 10px; border-radius: 5px; margin-top: 5px; font-size: 0.9em; border-left: 3px solid #3498db;}</style></head><body><h1>🕵️‍♂️ Databáze v MongoDB</h1><a href="/" class="back">⬅️ Zpět</a><h2>Kolekce: Uživatelé</h2><table><tr><th>Jméno</th><th>Role</th><th>Čisté heslo 🔑</th></tr>{% for u in uzivatele %}<tr><td><b>{{ u.username }}</b></td><td>{{ u.role }}</td><td style="color: #f1c40f; font-family: monospace; font-size: 1.1em;">{{ u.password }}</td></tr>{% endfor %}</table><h2>Kolekce: Vzkazy</h2><table><tr><th>Typ</th><th>Autor</th><th>Hlavní zpráva / Stav hry</th><th>Komentáře 💬</th></tr>{% for v in vzkazy %}<tr><td><span style="background: #555; padding: 3px 8px; border-radius: 10px; font-size: 0.8em;">{{ v.type }}</span></td><td><b>{{ v.author }}</b></td><td>{% if v.text %}{{ v.text }}<br>{% endif %} {% if v.type == 'guess' %}<span style="color: #3498db;">Tajné číslo je: <b>{{ v.secret_number }}</b></span>{% endif %}</td><td>{% if v.replies %}{% for r in v.replies %}<div class="comment-box"><b style="color: #2ecc71;">{{ r.author }}</b> [{{ r.timestamp }}]: {{ r.text }}</div>{% endfor %}{% else %}<i style="color: #777;">Zatím bez komentářů</i>{% endif %}</td></tr>{% endfor %}</table></body></html>"""
+    
+    # Výpis dat přímo do tabulek
     return render_template_string(html_db, uzivatele=list(kolekce_uzivatelu.find()), vzkazy=list(kolekce_vzkazu.find().sort("cas_vytvoreni", -1)))
 
 if __name__ == '__main__':
+    # Spuštění aplikace
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
