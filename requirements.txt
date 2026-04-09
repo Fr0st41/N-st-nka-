@@ -1,0 +1,5 @@
+flask
+openai
+httpx
+python-dotenv
+pymongo
