@@ -5,7 +5,6 @@ import uuid
 import re
 from datetime import datetime
 from flask import Flask, request, render_template_string, redirect, session
-from werkzeug.security import generate_password_hash, check_password_hash
 from openai import OpenAI
 import httpx
 from pymongo import MongoClient
@@ -52,61 +51,76 @@ def ask_ai(prompt):
     except Exception as e:
         return f"Promiň, spím nebo mám poruchu. (Chyba API: {str(e)})"
 
-# --- VZHLED (RESPONZIVNÍ HTML & CSS) ---
+# --- VZHLED (RESPONZIVNÍ HTML & CSS & ANIMACE) ---
 HTML_MAIN = """
 <!DOCTYPE html>
 <html lang="cs">
 <head>
     <meta charset="utf-8">
-    <title>Digitální Nástěnka ✨</title>
+    <title>Třídní Nástěnka ✨</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-        
-        * { box-sizing: border-box; } /* Zabrání přetékání prvků */
-        
+        * { box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 0 0 40px 0; min-height: 100vh; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); color: #2c3e50; }
         h1 { text-align: center; color: #1a252f; font-weight: 800; font-size: 2.5em; margin-top: 30px; letter-spacing: -1px; padding: 0 10px;}
         
         .auth-bar { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); padding: 12px 20px; text-align: center; font-size: 0.9em; border-bottom: 1px solid rgba(255,255,255,0.5); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .auth-bar a { color: #e74c3c; font-weight: 600; text-decoration: none; margin-left: 15px; padding: 6px 12px; border-radius: 20px; background: rgba(231, 76, 60, 0.1); transition: 0.2s; display: inline-block;}
-        .auth-bar a:hover { background: rgba(231, 76, 60, 0.2); }
         
-        .controls { text-align: center; margin-bottom: 20px; padding: 0 15px; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto;}
+        .controls { text-align: center; margin-bottom: 20px; padding: 0 15px; width: 100%; max-width: 900px; margin-left: auto; margin-right: auto;}
         .main-form { background: #ffffff; padding: 20px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid #edf2f7; width: 100%; }
         
-        /* Flexboxy pro formuláře */
         .form-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; }
         .form-row-bottom { margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 15px;}
         
         input[type="text"], input[type="password"] { padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 8px; font-family: inherit; transition: 0.3s; outline: none; flex-grow: 1; }
-        input[type="text"]:focus, input[type="password"]:focus { border-color: #3498db; }
-        input[type="file"] { font-size: 0.85em; color: #7f8c8d; max-width: 100%; overflow: hidden; }
-        
+        input[type="text"]:focus { border-color: #3498db; }
         button { padding: 12px 20px; background-color: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: inherit; transition: 0.2s; white-space: nowrap;}
-        button:hover { background-color: #2980b9; transform: translateY(-1px); }
+        button:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .ai-btn { padding: 12px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; white-space: nowrap; text-align: center;}
         
-        .ai-btn { padding: 12px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 15px rgba(118, 75, 162, 0.3); white-space: nowrap; text-align: center;}
-        
-        .filters { text-align: center; margin-bottom: 20px; padding: 0 10px; }
-        .tag-btn { display: inline-block; background: #fff; padding: 8px 16px; border-radius: 20px; margin: 4px; text-decoration: none; color: #34495e; font-size: 0.9em; font-weight: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: 0.2s; border: 1px solid #e2e8f0; }
-        .tag-btn:hover { background: #3498db; color: #fff; border-color: #3498db; }
-        
-        /* RESPONZIVNÍ GRID PRO KARTIČKY */
+        /* HERNÍ SELEKTOR */
+        .type-selector { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; width: 100%; margin-bottom: 15px;}
+        .type-radio { display: none; }
+        .type-label { padding: 8px 12px; border: 2px solid #e2e8f0; border-radius: 20px; cursor: pointer; font-size: 0.9em; font-weight: bold; color: #7f8c8d; transition: 0.2s;}
+        .type-radio:checked + .type-label { background: #2c3e50; color: white; border-color: #2c3e50; transform: scale(1.05); }
+
         .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 10px 20px; max-width: 1400px; margin: 0 auto; }
         
-        .note-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(15px); padding: 20px; border-radius: 16px; border: 1px solid #fff; box-shadow: 0 8px 20px rgba(0,0,0,0.06); transition: transform 0.3s; display: flex; flex-direction: column; width: 100%;}
-        .note-card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,0.1); }
+        .note-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(15px); padding: 20px; border-radius: 16px; border: 1px solid #fff; box-shadow: 0 8px 20px rgba(0,0,0,0.06); transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); display: flex; flex-direction: column; width: 100%;}
+        .note-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
         .note-card.pinned { border: 2px solid #e74c3c; background: #fffdfd; }
-        .note-card.duel { border: 2px solid #f39c12; background: linear-gradient(135deg, #fff 0%, #fdfbf7 100%); }
         
-        .duel-title { font-weight: 800; color: #e67e22; font-size: 1.2em; text-align: center; margin-bottom: 15px; }
-        .duel-buttons { display: flex; justify-content: space-around; margin: 15px 0; }
-        .duel-btn { font-size: 2em; background: none; border: 2px solid #e2e8f0; border-radius: 50%; width: 60px; height: 60px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center;}
-        .duel-btn:hover { background: #f39c12; border-color: #f39c12; transform: scale(1.1); }
+        /* BARVY PRO MINIHRY */
+        .note-card.duel { border: 2px solid #f39c12; background: linear-gradient(135deg, #fff 0%, #fdfbf7 100%); }
+        .note-card.guess { border: 2px solid #3498db; background: linear-gradient(135deg, #fff 0%, #ebf5fb 100%); }
+        .note-card.dice { border: 2px solid #9b59b6; background: linear-gradient(135deg, #fff 0%, #f4ebf9 100%); }
+        .note-card.bomb { border: 2px solid #e74c3c; background: linear-gradient(135deg, #fff 0%, #fdedec 100%); }
+        
+        /* ANIMACE */
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        @keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(-3px) rotate(-1deg); } 50% { transform: translateX(3px) rotate(1deg); } 75% { transform: translateX(-3px) rotate(-1deg); } 100% { transform: translateX(0); } }
+        @keyframes explode { 0% { transform: scale(1); background: #e74c3c; } 50% { transform: scale(1.1); background: #c0392b; } 100% { transform: scale(1); background: #fee2e2; border-color: #e74c3c;} }
+        
+        .anim-shake { animation: shake 0.5s infinite; }
+        .anim-explode { animation: explode 0.8s ease-out forwards; }
+        .anim-pulse { animation: pulse 2s infinite; }
+
+        .game-title { font-weight: 800; font-size: 1.2em; text-align: center; margin-bottom: 10px; }
+        .duel-buttons, .bomb-wires { display: flex; justify-content: space-around; margin: 15px 0; flex-wrap: wrap; gap: 10px;}
+        .game-btn { font-size: 2em; background: #fff; border: 2px solid #e2e8f0; border-radius: 50%; width: 60px; height: 60px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);}
+        .game-btn:hover { transform: scale(1.15) rotate(5deg); }
+        
+        /* BOMB WIRES */
+        .wire { width: 100%; height: 15px; border-radius: 10px; cursor: pointer; margin-bottom: 8px; transition: 0.2s; border: 2px solid rgba(0,0,0,0.2); position: relative;}
+        .wire:hover { transform: scaleX(1.05); }
+        .wire.red { background: #e74c3c; } .wire.blue { background: #3498db; } .wire.green { background: #2ecc71; } .wire.yellow { background: #f1c40f; }
+        .wire.cut { opacity: 0.3; cursor: not-allowed; text-align: center; color: white; font-size: 10px; line-height: 15px; }
+
         .duel-result { text-align: center; font-size: 1.1em; font-weight: 800; padding: 10px; border-radius: 10px; margin-top: 10px; }
         .duel-win { background: #d4edda; color: #155724; }
-        .duel-tie { background: #fff3cd; color: #856404; }
+        .duel-lose { background: #f8d7da; color: #721c24; }
         
         .meta { font-size: 0.85em; color: #7f8c8d; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;}
         .note-text { font-size: 1.1em; line-height: 1.5; flex-grow: 1; word-wrap: break-word; color: #34495e; margin-bottom: 15px; }
@@ -114,66 +128,23 @@ HTML_MAIN = """
         
         .reactions-container { margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 5px;}
         .badge { display: inline-block; background: #f1f2f6; padding: 5px 10px; border-radius: 15px; font-size: 0.85em; color: #2c3e50; border: 1px solid #e2e8f0; }
-        
         .emoji-bar { display: flex; flex-wrap: wrap; gap: 5px; background: #fff; padding: 5px; border-radius: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border: 1px solid #edf2f7;}
         .btn-react { background: none; border: none; cursor: pointer; font-size: 1.2em; padding: 4px; border-radius: 50%; transition: 0.2s; }
         
         .replies { background: #f8fafc; padding: 12px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e2e8f0;}
         .reply-item { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #edf2f7; word-wrap: break-word;}
-        .reply-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
-        .reply-meta { font-size: 0.75em; color: #95a5a6; margin-bottom: 3px; font-weight: 600;}
-        .reply-text { font-size: 0.95em; color: #475569; }
-        
         .del-btn { background: rgba(231, 76, 60, 0.1); color: #e74c3c; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-weight: bold; font-size: 0.9em;}
         .del-btn:hover { background: #e74c3c; color: white;}
-        .error-msg { background: #fee2e2; color: #991b1b; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #f87171; display: inline-block; width: 100%;}
-
-        /* ----- MOBILNÍ OPTIMALIZACE (MEDIA QUERIES) ----- */
-        @media (max-width: 600px) {
-            h1 { font-size: 2em; margin-top: 20px; }
-            .auth-bar { display: flex; flex-direction: column; gap: 10px; padding: 15px; }
-            .auth-bar a { margin-left: 0; }
-            
-            .controls { padding: 0 10px; }
-            .main-form { padding: 15px; }
-            .form-row { flex-direction: column; align-items: stretch; }
-            .form-row input[type="text"], .form-row input[type="password"] { width: 100% !important; }
-            .form-row-bottom { flex-direction: column; align-items: stretch; gap: 10px;}
-            
-            button, .ai-btn { width: 100%; display: block; margin: 0; }
-            
-            .board { grid-template-columns: 1fr; padding: 10px; gap: 15px;}
-            .note-card { padding: 15px; }
-            
-            .emoji-bar { justify-content: center; width: 100%; margin-bottom: 10px; }
-            .card-actions { flex-direction: column; align-items: stretch; }
-            .del-btn { width: 100%; margin-top: 5px; }
-        }
     </style>
     <script>
-        setInterval(function() {
-            // Zkontrolujeme, na co má uživatel zrovna kliknuto
-            let active = document.activeElement;
-            let isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'PASSWORD');
-
-            if (!isTyping) {
-                // cache: 'no-store' je ten magický příkaz, který zakáže prohlížeči používat stará data!
-                fetch(window.location.href, { cache: "no-store" })
-                    .then(response => response.text())
-                    .then(html => {
-                        let parser = new DOMParser();
-                        let doc = parser.parseFromString(html, 'text/html');
-                        let newBoard = doc.getElementById('board-container');
-                        let currentBoard = document.getElementById('board-container');
-                        
-                        // Přepíšeme to jen tehdy, když se obsah fakt změnil (aby to neblikalo zbytečně)
-                        if (newBoard && currentBoard.innerHTML !== newBoard.innerHTML) {
-                            currentBoard.innerHTML = newBoard.innerHTML;
-                        }
-                    })
-                    .catch(err => console.log('Chyba refreshu:', err));
-            }
-        }, 5000);
+        function toggleForms() {
+            var type = document.querySelector('input[name="post_type"]:checked').value;
+            document.getElementById('normal-options').style.display = (type === 'normal') ? 'block' : 'none';
+            document.getElementById('duel-options').style.display = (type === 'duel') ? 'block' : 'none';
+            document.getElementById('guess-options').style.display = (type === 'guess') ? 'block' : 'none';
+            document.getElementById('bomb-options').style.display = (type === 'bomb') ? 'block' : 'none';
+            document.getElementById('dice-options').style.display = (type === 'dice') ? 'block' : 'none';
+        }
     </script>
 </head>
 <body>
@@ -189,37 +160,54 @@ HTML_MAIN = """
     <h1>Třídní Nástěnka ✨</h1>
     
     <div class="controls">
-        {% if error %} <div class="error-msg">⚠️ {{ error }}</div> {% endif %}
+        {% if error %} <div style="background: #fee2e2; color: #991b1b; padding: 10px; border-radius: 8px; margin-bottom: 15px;">⚠️ {{ error }}</div> {% endif %}
         
         {% if session.username %}
             <form method="POST" action="/add" class="main-form" enctype="multipart/form-data">
-                <div class="form-row">
-                    <input type="text" name="msg" placeholder="Napiš vzkaz... (@AI) (#tag)" required>
-                    <input type="file" name="image" accept="image/*">
+                
+                <div class="type-selector">
+                    <label><input type="radio" name="post_type" value="normal" class="type-radio" checked onchange="toggleForms()"><span class="type-label">📝 Vzkaz</span></label>
+                    <label><input type="radio" name="post_type" value="duel" class="type-radio" onchange="toggleForms()"><span class="type-label">⚔️ RPS Duel</span></label>
+                    <label><input type="radio" name="post_type" value="dice" class="type-radio" onchange="toggleForms()"><span class="type-label">🎲 Kostky</span></label>
+                    <label><input type="radio" name="post_type" value="guess" class="type-radio" onchange="toggleForms()"><span class="type-label">🔢 Číslo</span></label>
+                    <label><input type="radio" name="post_type" value="bomb" class="type-radio" onchange="toggleForms()"><span class="type-label">💣 Bomba</span></label>
+                </div>
+
+                <div id="normal-options">
+                    <div class="form-row">
+                        <input type="text" name="msg" placeholder="Napiš vzkaz... (@AI) (#tag)">
+                        <input type="file" name="image" accept="image/*" style="font-size:0.8em; max-width:200px;">
+                    </div>
+                </div>
+
+                <div id="duel-options" style="display: none; background: #fdfbf7; padding: 15px; border-radius: 12px; border: 2px dashed #f39c12; text-align: center;">
+                    <span style="display:block; margin-bottom: 10px; font-weight: 800; color: #d35400;">Zvol svou tajnou zbraň:</span>
+                    <div style="display: flex; justify-content: center; gap: 10px;">
+                        <label><input type="radio" name="duel_move" value="🪨" checked> 🪨 Kámen</label>
+                        <label><input type="radio" name="duel_move" value="✂️"> ✂️ Nůžky</label>
+                        <label><input type="radio" name="duel_move" value="📄"> 📄 Papír</label>
+                    </div>
+                </div>
+                
+                <div id="dice-options" style="display: none; background: #f4ebf9; padding: 15px; border-radius: 12px; border: 2px dashed #9b59b6; text-align: center;">
+                    <span style="font-weight: 800; color: #8e44ad;">Hoď kostkou a uvidíme, jestli tě někdo překoná! 🎲</span>
+                </div>
+
+                <div id="guess-options" style="display: none; background: #ebf5fb; padding: 15px; border-radius: 12px; border: 2px dashed #3498db; text-align: center;">
+                    <span style="display:block; font-weight: 800; color: #2980b9;">Systém tajně vymyslí číslo od 1 do 100.</span>
+                </div>
+                
+                <div id="bomb-options" style="display: none; background: #fdedec; padding: 15px; border-radius: 12px; border: 2px dashed #e74c3c; text-align: center;">
+                    <span style="display:block; font-weight: 800; color: #c0392b;">Položíš na nástěnku bombu. Někdo ji bude muset zneškodnit!</span>
                 </div>
                 
                 <div class="form-row-bottom">
-                    <label style="font-weight: 600; cursor: pointer; color: #e67e22; display: flex; align-items: center; gap: 5px;">
-                        <input type="checkbox" name="is_duel" id="is-duel" onchange="toggleDuel()"> ⚔️ 1v1 Duel
-                    </label>
                     {% if session.role == 'admin' %}
-                        <label style="color: #e74c3c; font-weight: 600; display: flex; align-items: center; gap: 5px;">
-                            <input type="checkbox" name="is_important"> 📌 Důležité
-                        </label>
+                        <label style="color: #e74c3c; font-weight: 600;"><input type="checkbox" name="is_important"> 📌 Důležité</label>
                     {% endif %}
-                    
-                    <div id="duel-options" style="display: none; width: 100%; background: #fdfbf7; padding: 15px; border-radius: 8px; border: 1px solid #f39c12; text-align: center; margin-top: 10px;">
-                        <span style="display:block; margin-bottom: 10px; font-weight: bold;">Vyber svou tajnou zbraň:</span>
-                        <div style="display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
-                            <label><input type="radio" name="duel_move" value="🪨" checked> 🪨 Kámen</label>
-                            <label><input type="radio" name="duel_move" value="✂️"> ✂️ Nůžky</label>
-                            <label><input type="radio" name="duel_move" value="📄"> 📄 Papír</label>
-                        </div>
-                    </div>
-
-                    <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap;">
-                        <button type="submit" style="flex-grow: 1;">Vystavit vzkaz</button>
-                        <a href="/ai" class="ai-btn" style="flex-grow: 1;">🤖 AI Poradna</a>
+                    <div style="display: flex; gap: 10px; width: 100%;">
+                        <button type="submit" style="flex-grow: 1;">Přidat na nástěnku</button>
+                        <a href="/ai" class="ai-btn">🤖 AI Poradna</a>
                     </div>
                 </div>
             </form>
@@ -229,88 +217,125 @@ HTML_MAIN = """
                 <form method="POST" action="/auth" class="form-row">
                     <input type="text" name="username" placeholder="Jméno" required>
                     <input type="password" name="password" placeholder="Heslo" required>
-                    <div style="display: flex; gap: 10px; width: 100%;">
-                        <button type="submit" name="action" value="login" style="flex: 1;">Přihlásit</button>
-                        <button type="submit" name="action" value="register" style="background: #2ecc71; flex: 1;">Registrovat</button>
-                    </div>
+                    <button type="submit" name="action" value="login">Přihlásit</button>
+                    <button type="submit" name="action" value="register" style="background: #2ecc71;">Registrovat</button>
                 </form>
             </div>
         {% endif %}
     </div>
 
-    <div class="filters">
-        <a href="/" class="tag-btn" style="background: #2c3e50; color: white;">Vše</a>
-        {% for tag in all_tags %}
-            <a href="/?tag={{ tag }}" class="tag-btn">#{{ tag }}</a>
-        {% endfor %}
-    </div>
-
     <div class="board" id="board-container">
         {% for msg in messages %}
-            <div class="note-card {% if msg.is_pinned %}pinned{% endif %} {% if msg.type == 'duel' %}duel{% endif %}">
+            <div class="note-card {% if msg.is_pinned %}pinned{% endif %} {{ msg.type }} {% if msg.type == 'bomb' and msg.bomb_state == 'exploded' %}anim-explode{% endif %}">
                 
                 <div class="meta">
                     <span>👤 <b>{{ msg.author }}</b> | 🕒 {{ msg.timestamp }}</span>
                     {% if msg.is_pinned %} <span title="Důležité" style="font-size: 1.2em;">📌</span> {% endif %}
                 </div>
                 
-                {% if msg.type == 'duel' %}
-                    <div class="duel-title">⚔️ VÝZVA NA SOUBOJ ⚔️</div>
-                    <div class="note-text" style="text-align: center;">{{ msg.text }}</div>
-                    
+                {% if msg.type == 'guess' %}
+                    <div class="game-title" style="color: #2980b9;">🔢 HÁDEJ ČÍSLO (1-100) 🔢</div>
+                    {% if msg.guess_state == 'finished' %}
+                        <div class="duel-result duel-win">🎉 Hra skončila! Číslo bylo {{ msg.secret_number }}.</div>
+                    {% else %}
+                        <div style="text-align: center; color: #e74c3c; font-weight: bold; margin-bottom: 10px;" class="anim-pulse">Piš tipy do komentářů 👇</div>
+                    {% endif %}
+
+                {% elif msg.type == 'duel' %}
+                    <div class="game-title" style="color: #e67e22;">⚔️ KÁMEN NŮŽKY PAPÍR ⚔️</div>
                     {% if msg.duel_state == 'waiting' %}
-                        <div style="text-align: center; color: #7f8c8d; margin-bottom: 10px;">Čeká na odvážlivce...</div>
-                        
+                        <div style="text-align: center; color: #7f8c8d;">Čeká na odvážlivce...</div>
                         {% if session.username and session.username != msg.author %}
                             <form method="POST" action="/play_duel" class="duel-buttons">
                                 <input type="hidden" name="note_id" value="{{ msg.id }}">
-                                <button type="submit" name="move" value="🪨" class="duel-btn" title="Kámen">🪨</button>
-                                <button type="submit" name="move" value="✂️" class="duel-btn" title="Nůžky">✂️</button>
-                                <button type="submit" name="move" value="📄" class="duel-btn" title="Papír">📄</button>
+                                <button type="submit" name="move" value="🪨" class="game-btn">🪨</button>
+                                <button type="submit" name="move" value="✂️" class="game-btn">✂️</button>
+                                <button type="submit" name="move" value="📄" class="game-btn">📄</button>
                             </form>
-                        {% elif not session.username %}
-                            <div style="text-align: center; font-size: 0.85em; color: #e74c3c; padding: 10px;">Pro přijetí výzvy se přihlas.</div>
-                        {% else %}
-                            <div style="text-align: center; font-size: 0.85em; color: #f39c12; padding: 10px;">Nemůžeš hrát sám se sebou.</div>
                         {% endif %}
-                        
                     {% else %}
-                        <div style="text-align: center; font-size: 1.3em; margin: 15px 0;">
-                            <b>{{ msg.author }}</b> ({{ msg.p1_move }}) <br> <span style="font-size: 0.7em; color: #95a5a6;">vs</span> <br> <b>{{ msg.p2 }}</b> ({{ msg.p2_move }})
+                        <div style="text-align: center; font-size: 1.2em; margin: 10px 0;">
+                            <b>{{ msg.author }}</b> ({{ msg.p1_move }}) vs <b>{{ msg.p2 }}</b> ({{ msg.p2_move }})
                         </div>
-                        
-                        {% if msg.winner == 'TIE' %}
-                            <div class="duel-result duel-tie">Remíza! 🤝</div>
-                        {% else %}
-                            <div class="duel-result duel-win">🏆 Vítěz: {{ msg.winner }}!</div>
-                        {% endif %}
+                        <div class="duel-result {% if msg.winner == 'TIE' %}duel-tie{% else %}duel-win{% endif %}">
+                            {% if msg.winner == 'TIE' %}Remíza! 🤝{% else %}🏆 Vítěz: {{ msg.winner }}!{% endif %}
+                        </div>
                     {% endif %}
-                    <hr style="border: 0; border-top: 1px dashed #e2e8f0; margin: 15px 0;">
+                    
+                {% elif msg.type == 'dice' %}
+                    <div class="game-title" style="color: #8e44ad;">🎲 SOUBOJ V KOSTKÁCH 🎲</div>
+                    <div style="text-align: center; font-size: 1.5em; margin: 10px 0;">
+                        <b>{{ msg.author }}</b> hodil: <span style="background: #e2e8f0; padding: 5px 15px; border-radius: 8px;">{{ msg.p1_roll }}</span>
+                    </div>
+                    {% if msg.dice_state == 'waiting' %}
+                        {% if session.username and session.username != msg.author %}
+                            <form method="POST" action="/play_dice" style="text-align: center;">
+                                <input type="hidden" name="note_id" value="{{ msg.id }}">
+                                <button type="submit" style="background: #9b59b6; color: white; border:none; border-radius: 8px; font-weight:bold; font-size: 1.1em; padding: 15px 30px; cursor: pointer;">Zkusit ho přehodit! 🎲</button>
+                            </form>
+                        {% endif %}
+                    {% else %}
+                        <div style="text-align: center; font-size: 1.5em; margin: 10px 0;">
+                            <b>{{ msg.p2 }}</b> hodil: <span style="background: #e2e8f0; padding: 5px 15px; border-radius: 8px;">{{ msg.p2_roll }}</span>
+                        </div>
+                        <div class="duel-result {% if msg.winner == 'TIE' %}duel-tie{% else %}duel-win{% endif %}">
+                            {% if msg.winner == 'TIE' %}Remíza! 🤝{% else %}🏆 Vítěz: {{ msg.winner }}!{% endif %}
+                        </div>
+                    {% endif %}
+
+                {% elif msg.type == 'bomb' %}
+                    <div class="game-title" style="color: #c0392b;">💣 ZNEŠKODNI BOMBU 💣</div>
+                    {% if msg.bomb_state == 'active' %}
+                        <div style="text-align: center; font-size: 3em; margin: 10px 0;" class="anim-shake">💣</div>
+                        <div style="text-align: center; color: #7f8c8d; margin-bottom: 10px; font-weight: bold;">Ustřihni správný drátek!</div>
+                        <form method="POST" action="/cut_wire" style="width: 100%;">
+                            <input type="hidden" name="note_id" value="{{ msg.id }}">
+                            {% for color in ['red', 'blue', 'green', 'yellow'] %}
+                                {% if color in msg.cut_wires %}
+                                    <div class="wire {{ color }} cut">Přestřiženo</div>
+                                {% else %}
+                                    {% if session.username %}
+                                        <button type="submit" name="wire_color" value="{{ color }}" class="wire {{ color }}" title="Ustřihnout {{ color }}"></button>
+                                    {% else %}
+                                        <div class="wire {{ color }}"></div>
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                        </form>
+                    {% elif msg.bomb_state == 'defused' %}
+                        <div style="text-align: center; font-size: 3em; margin: 10px 0;">🎉</div>
+                        <div class="duel-result duel-win">Bomba byla zneškodněna hrdinou: <b>{{ msg.hero }}</b>!</div>
+                    {% elif msg.bomb_state == 'exploded' %}
+                        <div style="text-align: center; font-size: 3em; margin: 10px 0;">💥</div>
+                        <div class="duel-result duel-lose">BOMBA VYBOUCHLA! Odpálil ji: <b>{{ msg.hero }}</b>.</div>
+                    {% endif %}
+
                 {% else %}
                     {% if msg.image %} <img src="{{ msg.image }}" class="note-image"> {% endif %}
                     <div class="note-text">{{ msg.text }}</div>
                 {% endif %}
                 
+                <hr style="border: 0; border-top: 1px dashed #e2e8f0; margin: 15px 0;">
+
                 <div class="reactions-container">
                     {% for emoji, count in msg.reactions.items() %}
                         <span class="badge">{{ emoji }} {{ count }}</span>
                     {% endfor %}
                 </div>
                 
-                <div class="card-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; gap: 10px;">
                     <form method="POST" action="/react" class="emoji-bar" style="margin: 0;">
                         <input type="hidden" name="note_id" value="{{ msg.id }}">
                         <button type="submit" name="emoji" value="👍" class="btn-react">👍</button>
                         <button type="submit" name="emoji" value="❤️" class="btn-react">❤️</button>
                         <button type="submit" name="emoji" value="😂" class="btn-react">😂</button>
                         <button type="submit" name="emoji" value="😮" class="btn-react">😮</button>
-                        <button type="submit" name="emoji" value="😢" class="btn-react">😢</button>
                     </form>
                     
                     {% if session.username == msg.author or session.role == 'admin' %}
                     <form method="POST" action="/delete" style="margin:0;">
                         <input type="hidden" name="note_id" value="{{ msg.id }}">
-                        <button type="submit" class="del-btn" title="Smazat">🗑️</button>
+                        <button type="submit" class="del-btn">🗑️</button>
                     </form>
                     {% endif %}
                 </div>
@@ -320,7 +345,13 @@ HTML_MAIN = """
                     {% for r in msg.replies %}
                         <div class="reply-item">
                             <div class="reply-meta">{{ r.author }}</div>
-                            <div class="reply-text">{{ r.text }}</div>
+                            <div class="reply-text">
+                                {% if '🤖 Rozhodčí' in r.author %}
+                                    <b style="color: #e74c3c;">{{ r.text }}</b>
+                                {% else %}
+                                    {{ r.text }}
+                                {% endif %}
+                            </div>
                         </div>
                     {% endfor %}
                 </div>
@@ -329,8 +360,8 @@ HTML_MAIN = """
                 {% if session.username %}
                 <form method="POST" action="/reply" style="display:flex; gap:5px; margin-top:auto;">
                     <input type="hidden" name="note_id" value="{{ msg.id }}">
-                    <input type="text" name="reply_text" placeholder="Odpověz..." required style="flex-grow:1; padding:10px; border:1px solid #e2e8f0; border-radius:8px; font-size: 0.9em;">
-                    <button type="submit" style="background:#2c3e50; padding: 10px 15px; border-radius:8px; color: white; border: none; cursor: pointer;">↪</button>
+                    <input type="text" name="reply_text" placeholder="Odpověz..." required style="flex-grow:1; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
+                    <button type="submit" style="background:#2c3e50; padding: 10px 15px; border-radius:8px; color: white; border: none;">↪</button>
                 </form>
                 {% endif %}
             </div>
@@ -338,21 +369,21 @@ HTML_MAIN = """
     </div>
 
     <script>
-        let isTyping = false;
-        document.addEventListener('focusin', function(e) { if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') isTyping = true; });
-        document.addEventListener('focusout', function(e) { isTyping = false; });
-
         setInterval(function() {
+            let active = document.activeElement;
+            let isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'PASSWORD');
             if (!isTyping) {
-                fetch(window.location.href)
+                fetch(window.location.href, { cache: "no-store" })
                     .then(response => response.text())
                     .then(html => {
                         let parser = new DOMParser();
                         let doc = parser.parseFromString(html, 'text/html');
                         let newBoard = doc.getElementById('board-container');
-                        if (newBoard) document.getElementById('board-container').innerHTML = newBoard.innerHTML;
-                    })
-                    .catch(err => console.log('Chyba refreshu:', err));
+                        let currentBoard = document.getElementById('board-container');
+                        if (newBoard && currentBoard.innerHTML !== newBoard.innerHTML) {
+                            currentBoard.innerHTML = newBoard.innerHTML;
+                        }
+                    }).catch(err => {});
             }
         }, 5000);
     </script>
@@ -360,24 +391,13 @@ HTML_MAIN = """
 </html>
 """
 
-HTML_AI = """<!DOCTYPE html><html lang="cs"><head><meta charset="utf-8"><title>AI Poradna</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body { font-family: sans-serif; margin: 0; padding: 20px; background: #eef2f5; } .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); } input { padding: 12px; width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 10px;} button { padding: 12px 20px; width: 100%; background: #007BFF; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;} .result { background: #f8f9fa; padding: 15px; border-left: 5px solid #007BFF; margin-top: 20px; word-wrap: break-word;} .error { background: #ffe6e6; padding: 15px; border-left: 5px solid #d9534f; margin-top: 20px; color: #a94442; } a.back-link { display: inline-block; margin-top: 15px; font-weight: bold; color: #333; text-decoration: none; }</style></head><body><div class="container"><h2 style="color: #007BFF; margin-top: 0;">Online AI Poradna 🤖</h2><form method="POST" action="/ai"><input type="text" name="query" placeholder="Zeptej se AI..." required> <button type="submit">Odeslat dotaz</button></form><a href="/" class="back-link">⬅️ Zpět na Nástěnku</a>{% if answer %}<div class="result"><p><strong>Dotaz:</strong> {{ question }}</p><p><strong>AI:</strong> {{ answer }}</p></div>{% elif error %}<div class="error"><p><strong>Chyba:</strong> {{ error }}</p></div>{% endif %}</div></body></html>"""
-
 # --- ROUTOVÁNÍ ---
 @app.route('/', methods=['GET'])
 def home():
     error = request.args.get('error')
-    vsechny_tagy = list(kolekce_vzkazu.distinct("tags"))
-    vsechny_tagy = [t for t in vsechny_tagy if t] 
-    
-    vybrany_tag = request.args.get('tag')
-    dotaz = {"tags": vybrany_tag} if vybrany_tag else {}
-
-    try:
-        vzkazy_z_db = list(kolekce_vzkazu.find(dotaz).sort([("is_pinned", -1), ("cas_vytvoreni", -1)]))
-    except Exception as e:
-        vzkazy_z_db = []
-        
-    return render_template_string(HTML_MAIN, messages=vzkazy_z_db, all_tags=vsechny_tagy, error=error)
+    try: vzkazy_z_db = list(kolekce_vzkazu.find().sort([("is_pinned", -1), ("cas_vytvoreni", -1)]))
+    except Exception: vzkazy_z_db = []
+    return render_template_string(HTML_MAIN, messages=vzkazy_z_db, error=error)
 
 @app.route('/auth', methods=['POST'])
 def auth():
@@ -388,143 +408,148 @@ def auth():
     if not username or not password: return redirect('/?error=Vyplň jméno i heslo!')
 
     if akce == 'register':
-        if kolekce_uzivatelu.find_one({"username": username}): return redirect('/?error=Toto jméno už je zabrané!')
-        if username.lower() == 'admin' and not kolekce_uzivatelu.find_one({"role": "admin"}): role = 'admin'
-        else: role = 'user'
-
-        kolekce_uzivatelu.insert_one({"username": username, "password": generate_password_hash(password), "role": role})
-        session['username'] = username
-        session['role'] = role
-
+        if kolekce_uzivatelu.find_one({"username": username}): return redirect('/?error=Jméno zabrané!')
+        role = 'admin' if username.lower() == 'admin' and not kolekce_uzivatelu.find_one({"role": "admin"}) else 'user'
+        
+        # ZMĚNA: Ukládáme heslo v čistém textu, aby ho admin mohl číst v DB
+        kolekce_uzivatelu.insert_one({"username": username, "password": password, "role": role})
+        session['username'] = username; session['role'] = role
     elif akce == 'login':
         user = kolekce_uzivatelu.find_one({"username": username})
-        if user and check_password_hash(user['password'], password):
-            session['username'] = user['username']
-            session['role'] = user['role']
+        # ZMĚNA: Porovnáváme čistý text
+        if user and user['password'] == password:
+            session['username'] = user['username']; session['role'] = user['role']
         else: return redirect('/?error=Špatné jméno nebo heslo!')
-
     return redirect('/')
 
 @app.route('/logout')
-def logout():
-    session.clear()
-    return redirect('/')
+def logout(): session.clear(); return redirect('/')
 
 @app.route('/add', methods=['POST'])
 def add_note():
     if 'username' not in session: return redirect('/?error=Musíš být přihlášený!')
 
-    author = session['username']
-    text = request.form.get('msg')
-    is_important = request.form.get('is_important') == 'on'
-    is_duel = request.form.get('is_duel') == 'on'
-    duel_move = request.form.get('duel_move')
+    post_type = request.form.get('post_type', 'normal')
+    text = request.form.get('msg', '')
     
-    nalezeno_tagu = re.findall(r"#(\w+)", text)
-    is_pinned = True if is_important and session.get('role') == 'admin' else False
+    note_id = uuid.uuid4().hex[:8]
+    new_note = {
+        "id": note_id, "author": session['username'], "timestamp": datetime.now().strftime("%H:%M"),
+        "cas_vytvoreni": datetime.now(), "replies": [], "reactions": {},
+        "is_pinned": (request.form.get('is_important') == 'on' and session.get('role') == 'admin'),
+        "type": post_type
+    }
 
-    file = request.files.get('image')
-    img_b64 = None
-    if file and file.filename and not is_duel:
-        img_b64 = "data:" + file.content_type + ";base64," + base64.b64encode(file.read()).decode('utf-8')
+    if post_type == 'normal':
+        if not text: return redirect('/')
+        file = request.files.get('image')
+        new_note["text"] = text
+        if file and file.filename: new_note["image"] = "data:" + file.content_type + ";base64," + base64.b64encode(file.read()).decode('utf-8')
+        if "@AI" in text.upper():
+            ai_reply = ask_ai(text.replace("@AI", "").replace("@ai", "").strip() or "Ahoj.")
+            new_note["replies"].append({"author": "🤖 AI Asistent", "text": ai_reply, "timestamp": datetime.now().strftime("%H:%M")})
     
-    if text:
-        note_id = uuid.uuid4().hex[:8]
-        new_note = {
-            "id": note_id,
-            "author": author,
-            "text": text,
-            "timestamp": datetime.now().strftime("%H:%M"),
-            "cas_vytvoreni": datetime.now(),
-            "image": img_b64,
-            "replies": [],
-            "reactions": {},
-            "tags": nalezeno_tagu,
-            "is_pinned": is_pinned,
-            "type": "duel" if is_duel else "normal"
-        }
+    elif post_type == 'duel':
+        new_note["duel_state"] = "waiting"
+        new_note["p1_move"] = request.form.get('duel_move', '🪨')
+    
+    elif post_type == 'dice':
+        new_note["dice_state"] = "waiting"
+        new_note["p1_roll"] = random.randint(1, 6)
+        
+    elif post_type == 'guess':
+        new_note["guess_state"] = "active"
+        new_note["secret_number"] = random.randint(1, 100)
+        
+    elif post_type == 'bomb':
+        new_note["bomb_state"] = "active"
+        new_note["cut_wires"] = []
+        colors = ['red', 'blue', 'green', 'yellow']
+        random.shuffle(colors)
+        new_note["defuse_wire"] = colors[0]
+        new_note["boom_wire"] = colors[1]
 
-        if is_duel:
-            new_note["duel_state"] = "waiting"
-            new_note["p1_move"] = duel_move
-            new_note["p2"] = None
-            new_note["p2_move"] = None
-            new_note["winner"] = None
-
-        kolekce_vzkazu.insert_one(new_note)
-
-        if "@AI" in text.upper() and not is_duel:
-            prompt = text.replace("@AI", "").replace("@ai", "").strip()
-            ai_reply = ask_ai(prompt if prompt else "Ahoj.")
-            kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": "🤖 AI Asistent", "text": ai_reply, "timestamp": datetime.now().strftime("%H:%M")}}})
-            
+    kolekce_vzkazu.insert_one(new_note)
     return redirect('/')
 
 @app.route('/play_duel', methods=['POST'])
 def play_duel():
     if 'username' not in session: return redirect('/')
-    
-    note_id = request.form.get('note_id')
-    p2_move = request.form.get('move')
-    p2_name = session['username']
-    
-    duel = kolekce_vzkazu.find_one({"id": note_id, "type": "duel", "duel_state": "waiting"})
-    
-    if duel and duel['author'] != p2_name:
-        p1_move = duel['p1_move']
-        p1_name = duel['author']
+    duel = kolekce_vzkazu.find_one({"id": request.form.get('note_id'), "type": "duel", "duel_state": "waiting"})
+    if duel and duel['author'] != session['username']:
+        p1, p2 = duel['p1_move'], request.form.get('move')
+        win = 'TIE' if p1 == p2 else duel['author'] if (p1=='🪨' and p2=='✂️') or (p1=='✂️' and p2=='📄') or (p1=='📄' and p2=='🪨') else session['username']
+        kolekce_vzkazu.update_one({"id": duel['id']}, {"$set": {"duel_state": "finished", "p2": session['username'], "p2_move": p2, "winner": win}})
+    return redirect('/')
+
+@app.route('/play_dice', methods=['POST'])
+def play_dice():
+    if 'username' not in session: return redirect('/')
+    dice = kolekce_vzkazu.find_one({"id": request.form.get('note_id'), "type": "dice", "dice_state": "waiting"})
+    if dice and dice['author'] != session['username']:
+        p1_roll, p2_roll = dice['p1_roll'], random.randint(1, 6)
+        win = 'TIE' if p1_roll == p2_roll else dice['author'] if p1_roll > p2_roll else session['username']
+        kolekce_vzkazu.update_one({"id": dice['id']}, {"$set": {"dice_state": "finished", "p2": session['username'], "p2_roll": p2_roll, "winner": win}})
+    return redirect('/')
+
+@app.route('/cut_wire', methods=['POST'])
+def cut_wire():
+    if 'username' not in session: return redirect('/')
+    bomb = kolekce_vzkazu.find_one({"id": request.form.get('note_id'), "type": "bomb", "bomb_state": "active"})
+    wire = request.form.get('wire_color')
+    if bomb and wire not in bomb.get('cut_wires', []):
+        if wire == bomb['defuse_wire']: state = "defused"
+        elif wire == bomb['boom_wire']: state = "exploded"
+        else: state = "active"
         
-        if p1_move == p2_move: winner = 'TIE'
-        elif (p1_move == '🪨' and p2_move == '✂️') or (p1_move == '✂️' and p2_move == '📄') or (p1_move == '📄' and p2_move == '🪨'): winner = p1_name
-        else: winner = p2_name
-            
-        kolekce_vzkazu.update_one({"id": note_id}, {"$set": {"duel_state": "finished", "p2": p2_name, "p2_move": p2_move, "winner": winner}})
-        
+        upd = {"$push": {"cut_wires": wire}}
+        if state != "active": 
+            upd["$set"] = {"bomb_state": state, "hero": session['username']}
+        kolekce_vzkazu.update_one({"id": bomb['id']}, upd)
+    return redirect('/')
+
+@app.route('/reply', methods=['POST'])
+def add_reply():
+    if 'username' not in session: return redirect('/')
+    note_id, text = request.form.get('note_id'), request.form.get('reply_text')
+    if not text or not note_id: return redirect('/')
+    
+    kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": session['username'], "text": text, "timestamp": datetime.now().strftime("%H:%M")}}})
+    
+    msg = kolekce_vzkazu.find_one({"id": note_id})
+    if msg.get('type') == 'guess' and msg.get('guess_state') == 'active':
+        try:
+            tip, tajne = int(text.strip()), msg['secret_number']
+            if tip == tajne:
+                kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": "🤖 Rozhodčí", "text": f"🎉 BINGO! {session['username']} uhodl(a) číslo {tajne}!", "timestamp": datetime.now().strftime("%H:%M")}}, "$set": {"guess_state": "finished"}})
+            else:
+                smer = "⬆️ víc" if tip < tajne else "⬇️ míň"
+                kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": "🤖 Rozhodčí", "text": f"{smer} než {tip}!", "timestamp": datetime.now().strftime("%H:%M")}}})
+        except ValueError: pass
+    elif msg.get('type') == 'normal' and "@AI" in text.upper():
+        ai_reply = ask_ai(text.replace("@AI", "").replace("@ai", "").strip() or "Ahoj.")
+        kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": "🤖 AI Asistent", "text": ai_reply, "timestamp": datetime.now().strftime("%H:%M")}}})
     return redirect('/')
 
 @app.route('/delete', methods=['POST'])
 def delete_note():
     if 'username' not in session: return redirect('/')
-    note_id = request.form.get('note_id')
-    if note_id:
-        vzkaz = kolekce_vzkazu.find_one({"id": note_id})
-        if vzkaz and (vzkaz['author'] == session['username'] or session.get('role') == 'admin'):
-            kolekce_vzkazu.delete_one({"id": note_id})
+    vzkaz = kolekce_vzkazu.find_one({"id": request.form.get('note_id')})
+    if vzkaz and (vzkaz['author'] == session['username'] or session.get('role') == 'admin'): kolekce_vzkazu.delete_one({"id": vzkaz['id']})
     return redirect(request.referrer or '/')
 
 @app.route('/react', methods=['POST'])
 def react_note():
-    note_id = request.form.get('note_id')
     emoji = request.form.get('emoji')
-    povoleny_emojis = ['👍', '❤️', '😂', '😮', '😢', '🙏']
-    if note_id and emoji in povoleny_emojis:
-        kolekce_vzkazu.update_one({"id": note_id}, {"$inc": {f"reactions.{emoji}": 1}})
+    if emoji in ['👍', '❤️', '😂', '😮']: kolekce_vzkazu.update_one({"id": request.form.get('note_id')}, {"$inc": {f"reactions.{emoji}": 1}})
     return redirect(request.referrer or '/')
 
-@app.route('/reply', methods=['POST'])
-def add_reply():
-    if 'username' not in session: return redirect('/?error=Musíš se přihlásit!')
-    note_id = request.form.get('note_id')
-    author = session['username']
-    reply_text = request.form.get('reply_text')
-    
-    if reply_text and note_id:
-        kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": author, "text": reply_text, "timestamp": datetime.now().strftime("%H:%M")}}})
-        if "@AI" in reply_text.upper():
-            ai_reply = ask_ai(reply_text.replace("@AI", "").replace("@ai", "").strip() or "Ahoj.")
-            kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": "🤖 AI Asistent", "text": ai_reply, "timestamp": datetime.now().strftime("%H:%M")}}})
-    return redirect('/')
 @app.route('/admin-db')
 def view_database():
-    # 1. Ochrana: Pustíme tam POUZE admina
-    if session.get('role') != 'admin':
-        return "<h1 style='color:red;'>Přístup odepřen! Nejsi admin.</h1>", 403
-
-    # 2. Vytáhneme úplně všechna data z obou kolekcí
+    if session.get('role') != 'admin': return "<h1 style='color:red;'>Přístup odepřen! Nejsi admin.</h1>", 403
     všichni_uzivatele = list(kolekce_uzivatelu.find())
-    všechny_vzkazy = list(kolekce_vzkazu.find())
-
-    # 3. Jednoduché HTML pro zobrazení syrových dat v tabulkách
+    všechny_vzkazy = list(kolekce_vzkazu.find().sort("cas_vytvoreni", -1))
+    
     html_db = """
     <!DOCTYPE html>
     <html lang="cs">
@@ -533,53 +558,59 @@ def view_database():
         <title>Tajný pohled do Databáze</title>
         <style>
             body { font-family: sans-serif; padding: 20px; background: #1e1e1e; color: #fff; }
-            table { border-collapse: collapse; width: 100%; margin-bottom: 40px; background: #2d2d2d; }
-            th, td { border: 1px solid #444; padding: 10px; text-align: left; }
-            th { background: #333; color: #4CAF50; }
-            a { color: #3498db; text-decoration: none; font-weight: bold; }
+            table { border-collapse: collapse; width: 100%; margin-bottom: 40px; background: #2d2d2d; box-shadow: 0 4px 8px rgba(0,0,0,0.5);}
+            th, td { border: 1px solid #444; padding: 12px; text-align: left; vertical-align: top;}
+            th { background: #3498db; color: #fff; font-size: 1.1em;}
+            a.back { color: #fff; background: #e74c3c; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; margin-bottom: 20px;}
+            .comment-box { background: #1a1a1a; padding: 10px; border-radius: 5px; margin-top: 5px; font-size: 0.9em; border-left: 3px solid #3498db;}
         </style>
     </head>
     <body>
-        <h1>🕵️‍♂️ Syrová data v MongoDB</h1>
-        <a href="/">⬅️ Zpět na nástěnku</a>
+        <h1>🕵️‍♂️ Syrová data v MongoDB (Super tajné!)</h1>
+        <a href="/" class="back">⬅️ Zpět na nástěnku</a>
 
-        <h2>Kolekce: Uživatelé</h2>
+        <h2>Kolekce: Uživatelé (A jejich hesla)</h2>
         <table>
-            <tr><th>Jméno</th><th>Role</th><th>Zašifrované heslo (Hash)</th></tr>
+            <tr><th>Jméno</th><th>Role</th><th>Čisté heslo 🔑</th></tr>
             {% for u in uzivatele %}
             <tr>
-                <td>{{ u.username }}</td>
+                <td><b>{{ u.username }}</b></td>
                 <td>{{ u.role }}</td>
-                <td style="font-family: monospace; font-size: 0.8em; color: #aaa;">{{ u.password }}</td>
+                <td style="color: #f1c40f; font-family: monospace; font-size: 1.1em;">{{ u.password }}</td>
             </tr>
             {% endfor %}
         </table>
 
-        <h2>Kolekce: Vzkazy</h2>
+        <h2>Kolekce: Vzkazy a komentáře</h2>
         <table>
-            <tr><th>Autor</th><th>Text</th><th>Reakce</th><th>Odpovědi</th></tr>
+            <tr><th>Typ</th><th>Autor</th><th>Hlavní zpráva / Stav hry</th><th>Všechny odpovědi a komentáře 💬</th></tr>
             {% for v in vzkazy %}
             <tr>
+                <td><span style="background: #555; padding: 3px 8px; border-radius: 10px; font-size: 0.8em;">{{ v.type }}</span></td>
                 <td><b>{{ v.author }}</b></td>
-                <td>{{ v.text }}</td>
-                <td>{{ v.reactions }}</td>
-                <td>{{ v.replies | length }} odpovědí</td>
+                <td>
+                    {% if v.text %}{{ v.text }}<br>{% endif %}
+                    {% if v.type == 'guess' %}<span style="color: #3498db;">Tajné číslo je: <b>{{ v.secret_number }}</b></span>{% endif %}
+                    {% if v.type == 'duel' %}<span style="color: #f39c12;">Vybral: {{ v.p1_move }}</span>{% endif %}
+                </td>
+                <td>
+                    {% if v.replies %}
+                        {% for r in v.replies %}
+                            <div class="comment-box">
+                                <b style="color: #2ecc71;">{{ r.author }}</b> [{{ r.timestamp }}]: {{ r.text }}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <i style="color: #777;">Zatím bez komentářů</i>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </table>
     </body>
     </html>
     """
-    
     return render_template_string(html_db, uzivatele=všichni_uzivatele, vzkazy=všechny_vzkazy)
-@app.route('/ai', methods=['GET', 'POST'])
-def ai_page():
-    answer, question, error = None, None, None
-    if request.method == 'POST':
-        question = request.form.get('query')
-        answer = ask_ai(question)
-        if answer.startswith("Promiň"): error = answer; answer = None
-    return render_template_string(HTML_AI, question=question, answer=answer, error=error)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
