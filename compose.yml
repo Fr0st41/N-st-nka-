@@ -5,15 +5,10 @@ services:
       - "5000:5000"
     environment:
       - PORT=5000
-      - MONGO_URI=mongodb://db:27017/  # Tady říkáme aplikaci, ať hledá databázi s názvem "db"
+      - MONGO_URI=mongodb://db:27017/
     depends_on:
       - db
 
   db:
     image: mongo:latest
     restart: always
-    volumes:
-      - mongo_data:/data/db # Tohle zajistí, že data přežijí i restart kontejneru
-
-volumes:
-  mongo_data:
