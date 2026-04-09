@@ -11,13 +11,13 @@ import httpx
 from pymongo import MongoClient
 
 app = Flask(__name__)
-# Tajný klíč pro zabezpečení přihlášení (Sessions)
-app.secret_key = os.environ.get("SECRET_KEY", "super_tajny_klic_pro_session")
+# Generuje zcela náhodný klíč pokaždé, když se aplikace zapne (není potřeba .env)
+app.secret_key = os.urandom(24)
 
 # --- KONFIGURACE AI ---
+# Tyhle proměnné si školní server dodá automaticky sám!
 api_key = os.environ.get("OPENAI_API_KEY")
 base_url = os.environ.get("OPENAI_BASE_URL")
-ADMIN_PIN = os.environ.get("ADMIN_PIN", "admin") # Slouží jako heslo pro účet 'admin'
 MODEL_NAME = "gemma3:27b"
 
 client = OpenAI(
@@ -34,15 +34,6 @@ kolekce_vzkazu = db.vzkazy
 kolekce_uzivatelu = db.uzivatele
 
 NOTE_COLORS = ["#fffacd", "#e0ffff", "#e6e6fa", "#ffdab9", "#d8f8d8", "#ffe4e1"]
-
-# --- AUTOMATICKÉ VYTVOŘENÍ ADMINA ---
-# Při startu zkontrolujeme, jestli existuje admin. Pokud ne, vytvoříme ho.
-if not kolekce_uzivatelu.find_one({"username": "admin"}):
-    kolekce_uzivatelu.insert_one({
-        "username": "admin",
-        "password": generate_password_hash(ADMIN_PIN),
-        "role": "admin"
-    })
 
 # --- FUNKCE AI S PAMĚTÍ (RAG) ---
 def ask_ai(prompt):
@@ -106,7 +97,7 @@ HTML_MAIN = """
         
         .auth-bar { background: rgba(0,0,0,0.8); color: white; padding: 10px; text-align: center; margin: -20px -20px 20px -20px; font-family: sans-serif; }
         .auth-bar a { color: #4CAF50; font-weight: bold; text-decoration: none; margin-left: 15px; }
-        .error-msg { color: red; font-weight: bold; margin-bottom: 10px; }
+        .error-msg { color: #ffeb3b; font-weight: bold; margin-bottom: 10px; background: rgba(0,0,0,0.5); padding: 5px; display: inline-block; border-radius: 5px; }
     </style>
 </head>
 <body>
@@ -116,14 +107,14 @@ HTML_MAIN = """
             {% if session.role == 'admin' %} <span style="color: gold;">(Admin)</span> {% endif %}
             <a href="/logout">🚪 Odhlásit se</a>
         {% else %}
-            Nejsi přihlášen. Můžeš jen číst vzkazy.
+            Nejsi přihlášen. Můžeš číst, ale pro psaní vzkazů se musíš přihlásit/zaregistrovat.
         {% endif %}
     </div>
 
     <h1>Třídní Nástěnka 📌</h1>
     
     <div class="controls">
-        {% if error %} <div class="error-msg">{{ error }}</div> {% endif %}
+        {% if error %} <div class="error-msg">⚠️ {{ error }}</div> {% endif %}
         
         {% if session.username %}
             <form method="POST" action="/add" class="main-form" enctype="multipart/form-data">
@@ -209,7 +200,7 @@ HTML_MAIN = """
 </html>
 """
 
-HTML_AI = """<!DOCTYPE html><html lang="cs"><head><meta charset="utf-8"><title>AI Poradna</title><style>body { font-family: sans-serif; margin: 40px; background: #eef2f5; } .container { max-width: 600px; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); } input { padding: 10px; width: 70%; border: 1px solid #ccc; border-radius: 5px; } button { padding: 10px 20px; background: #007BFF; color: white; border: none; border-radius: 5px; cursor: pointer; } .result { background: #f8f9fa; padding: 15px; border-left: 5px solid #007BFF; margin-top: 20px; } .error { background: #ffe6e6; padding: 15px; border-left: 5px solid #d9534f; margin-top: 20px; color: #a94442; }</style></head><body><div class="container"><h1 style="color: #007BFF; margin-top: 0;">Online AI Poradna 🤖</h1><p><i>Jsem propojen s nástěnkou a vím, co se tam píše!</i></p><form method="POST" action="/ai"><input type="text" name="query" placeholder="Zeptej se umělé inteligence..." required> <button type="submit">Odeslat</button></form><br><a href="/" style="font-weight: bold; color: #333; text-decoration: none;">⬅️ Zpět na Nástěnku</a>{% if answer %}<div class="result"><p><strong>Dotaz:</strong> {{ question }}</p><p><strong>AI:</strong> {{ answer }}</p></div>{% elif error %}<div class="error"><p><strong>Chyba:</strong> {{ error }}</p></div>{% endif %}</div></body></html>"""
+HTML_AI = """<!DOCTYPE html><html lang="cs"><head><meta charset="utf-8"><title>AI Poradna</title><style>body { font-family: sans-serif; margin: 40px; background: #eef2f5; } .container { max-width: 600px; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); } input { padding: 10px; width: 70%; border: 1px solid #ccc; border-radius: 5px; } button { padding: 10px 20px; background: #007BFF; color: white; border: none; border-radius: 5px; cursor: pointer; } .result { background: #f8f9fa; padding: 15px; border-left: 5px solid #007BFF; margin-top: 20px; } .error { background: #ffe6e6; padding: 15px; border-left: 5px solid #d9534f; margin-top: 20px; color: #a94442; }</style></head><body><div class="container"><h1 style="color: #007BFF; margin-top: 0;">Online AI Poradna 🤖</h1><form method="POST" action="/ai"><input type="text" name="query" placeholder="Zeptej se umělé inteligence..." required> <button type="submit">Odeslat</button></form><br><a href="/" style="font-weight: bold; color: #333; text-decoration: none;">⬅️ Zpět na Nástěnku</a>{% if answer %}<div class="result"><p><strong>Dotaz:</strong> {{ question }}</p><p><strong>AI:</strong> {{ answer }}</p></div>{% elif error %}<div class="error"><p><strong>Chyba:</strong> {{ error }}</p></div>{% endif %}</div></body></html>"""
 
 # --- ROUTOVÁNÍ ---
 
@@ -237,22 +228,25 @@ def auth():
         return redirect('/?error=Vyplň jméno i heslo!')
 
     if akce == 'register':
-        # Kontrola, jestli uživatel už neexistuje
         if kolekce_uzivatelu.find_one({"username": username}):
             return redirect('/?error=Toto jméno už je zabrané!')
-        
-        # Uložení nového uživatele s hashem hesla
+
+        # FÍGL ZDE: Pokud se jmenuješ 'admin' a ještě v databázi žádný admin není, dostaneš roli admina!
+        if username.lower() == 'admin' and not kolekce_uzivatelu.find_one({"role": "admin"}):
+            role = 'admin'
+        else:
+            role = 'user'
+
         kolekce_uzivatelu.insert_one({
             "username": username,
             "password": generate_password_hash(password),
-            "role": "user"
+            "role": role
         })
         session['username'] = username
-        session['role'] = 'user'
+        session['role'] = role
 
     elif akce == 'login':
         user = kolekce_uzivatelu.find_one({"username": username})
-        # Kontrola hesla proti hashi v databázi
         if user and check_password_hash(user['password'], password):
             session['username'] = user['username']
             session['role'] = user['role']
@@ -263,7 +257,7 @@ def auth():
 
 @app.route('/logout')
 def logout():
-    session.clear() # Smaže data o přihlášení
+    session.clear()
     return redirect('/')
 
 @app.route('/add', methods=['POST'])
@@ -303,7 +297,7 @@ def add_note():
 
         if "@AI" in text.upper():
             prompt = text.replace("@AI", "").replace("@ai", "").strip()
-            ai_reply = ask_ai(prompt if prompt else "Ahoj, představ se krátce.")
+            ai_reply = ask_ai(prompt if prompt else "Ahoj.")
             kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {
                 "author": "🤖 AI Asistent",
                 "text": ai_reply,
@@ -318,10 +312,8 @@ def delete_note():
         return redirect('/')
 
     note_id = request.form.get('note_id')
-    
     if note_id:
         vzkaz = kolekce_vzkazu.find_one({"id": note_id})
-        # Koš se teď ptá: Jsi autor vzkazu? NEBO Jsi admin?
         if vzkaz and (vzkaz['author'] == session['username'] or session.get('role') == 'admin'):
             kolekce_vzkazu.delete_one({"id": note_id})
             
