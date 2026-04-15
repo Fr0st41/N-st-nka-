@@ -186,6 +186,9 @@ HTML_MAIN = """
         .del-btn { background: rgba(231, 76, 60, 0.1); color: #e74c3c; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-weight: bold; font-size: 0.9em;}
         .del-btn:hover { background: #e74c3c; color: white;}
 
+        /* =======================================
+           CSS OPRAVY PRO MOBIL (Tady byla chyba!)
+           ======================================= */
         @media (max-width: 600px) {
             h1 { font-size: 2em; margin-top: 20px; }
             .auth-bar { display: flex; flex-direction: column; gap: 10px; padding: 15px; }
@@ -201,8 +204,24 @@ HTML_MAIN = """
             .emoji-bar { justify-content: center; width: 100%; margin-bottom: 10px; }
             .card-actions { flex-direction: column; align-items: stretch; }
             .del-btn { width: 100%; margin-top: 5px; }
-            .type-selector { gap: 8px; }
-            .type-label { flex: 1 1 40%; text-align: center; padding: 10px 5px; font-size: 0.85em; display: block;}
+            
+            /* ZCELA NOVÝ GRID PRO TLAČÍTKA HER - Dokonalé zarovnání! */
+            .type-selector { 
+                display: grid !important; 
+                grid-template-columns: 1fr 1fr; /* Dva sloupce vedle sebe */
+                gap: 10px; 
+            }
+            .type-selector label { margin: 0; }
+            /* Poslední tlačítko (Bomba) se roztáhne přes oba sloupce */
+            .type-selector label:last-child { grid-column: span 2; }
+            
+            .type-label { 
+                display: block; 
+                width: 100%; 
+                text-align: center; 
+                padding: 10px 5px; 
+                font-size: 0.85em; 
+            }
         }
     </style>
     <script>
