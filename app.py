@@ -1,36 +1,32 @@
 # ==========================================
 # 1. IMPORTY (Nástroje, které aplikace potřebuje)
 # ==========================================
-import os                  # Pro čtení tajných hesel ze serveru (proměnné prostředí)
-import random              # Generování náhody (hody kostkou, míchání drátků u bomby)
-import base64              # Převádí nahrané obrázky na dlouhý text, aby šly uložit do databáze
-import uuid                # Generuje unikátní kódy pro každý papírek (např. 'a7b3c9d1')
-import re                  # Hledání speciálních znaků (např. hashtagů v textu)
-from datetime import datetime # Zjišťování aktuálního času (např. 14:30)
+import os                  
+import random              
+import base64              
+import uuid                
+import re                  
+from datetime import datetime 
 
-# Knihovny pro běh samotného webu (Flask)
 from flask import Flask, request, render_template_string, redirect, session
 from werkzeug.security import generate_password_hash, check_password_hash
 
-# Knihovny pro umělou inteligenci a databázi
 from openai import OpenAI
 import httpx
 from pymongo import MongoClient
 
 # Založení aplikace
 app = Flask(__name__)
-# Tajný klíč pro bezpečné přihlašování (vytvoří se nový při každém startu)
+# Tajný klíč pro bezpečné přihlašování 
 app.secret_key = os.urandom(24) 
 
 # ==========================================
 # 2. NASTAVENÍ UMĚLÉ INTELIGENCE (AI)
 # ==========================================
-# Bere si API klíč a adresu ze školního serveru
 api_key = os.environ.get("OPENAI_API_KEY")
 base_url = os.environ.get("OPENAI_BASE_URL")
 MODEL_NAME = "gemma3:27b"
 
-# Vytvoření "klienta", přes kterého si budeme s AI psát
 client = OpenAI(
     api_key=api_key,
     base_url=base_url,
@@ -40,14 +36,12 @@ client = OpenAI(
 # ==========================================
 # 3. PŘIPOJENÍ K DATABÁZI (MongoDB)
 # ==========================================
-# Řekneme aplikaci, kde databáze bydlí (adresa 'db')
 mongo_uri = os.environ.get("MONGO_URI", "mongodb://db:27017/")
 mongo_client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
 
-# Vytvoříme hlavní databázi a v ní dvě "složky" (kolekce)
 db = mongo_client.nastenka_databaze
-kolekce_vzkazu = db.vzkazy       # Sem ukládáme papírky
-kolekce_uzivatelu = db.uzivatele # Sem ukládáme registrované lidi
+kolekce_vzkazu = db.vzkazy       
+kolekce_uzivatelu = db.uzivatele 
 
 # ==========================================
 # 4. FUNKCE PRO AI (S PAMĚTÍ - RAG)
@@ -73,8 +67,10 @@ def ask_ai(prompt):
         return f"Promiň, spím nebo mám poruchu. (Chyba: {str(e)})"
 
 # ==========================================
-# 5. VZHLED WEBU (HTML, CSS a JavaScript)
+# 5. VZHLED WEBU (HTML & CSS)
 # ==========================================
+
+# ----- HTML PRO NÁSTĚNKU -----
 HTML_MAIN = """
 <!DOCTYPE html>
 <html lang="cs">
@@ -194,7 +190,7 @@ HTML_MAIN = """
         .del-btn:hover { background: #e74c3c; color: white;}
 
         /* =======================================
-           TMAVÝ REŽIM (DARK MODE OVERRIDES)
+           TMAVÝ REŽIM (DARK MODE)
            ======================================= */
         .dark-mode body { background: linear-gradient(135deg, #111827 0%, #1f2937 100%); color: #f3f4f6; }
         .dark-mode h1, .dark-mode h3 { color: #f9fafb; }
@@ -253,7 +249,7 @@ HTML_MAIN = """
         }
     </style>
     <script>
-        // LOGIKA PRO PŘEPÍNÁNÍ TMAVÉHO REŽIMU
+        // PŘEPÍNÁNÍ TMAVÉHO REŽIMU
         function toggleTheme() {
             document.documentElement.classList.toggle('dark-mode');
             let theme = 'light';
@@ -266,14 +262,13 @@ HTML_MAIN = """
             localStorage.setItem('theme', theme);
         }
         
-        // Nastavení správné ikonky po načtení stránky
         window.onload = function() {
             if (document.documentElement.classList.contains('dark-mode')) {
                 document.getElementById('theme-toggle').innerText = '☀️';
             }
         };
 
-        // Přepíná viditelnost formulářů podle toho, jakou minihru uživatel nahoře zaklikne
+        // Přepíná viditelnost formulářů her
         function toggleForms() {
             var type = document.querySelector('input[name="post_type"]:checked').value;
             document.getElementById('normal-options').style.display = (type === 'normal') ? 'block' : 'none';
@@ -283,7 +278,7 @@ HTML_MAIN = """
             document.getElementById('dice-options').style.display = (type === 'dice') ? 'block' : 'none';
         }
         
-        // FOCUS MÓD: Funkce pro zvětšení papírku
+        // FOCUS MÓD (Zvětšování papírků)
         let isExpanded = false; 
         function openCard(id) {
             document.querySelectorAll('.note-card.expanded').forEach(c => c.classList.remove('expanded'));
@@ -291,7 +286,6 @@ HTML_MAIN = """
             document.getElementById('overlay').classList.add('active'); 
             isExpanded = true;
         }
-        // FOCUS MÓD: Funkce pro zavření papírku
         function closeCards() {
             document.querySelectorAll('.note-card.expanded').forEach(c => c.classList.remove('expanded'));
             document.getElementById('overlay').classList.remove('active');
@@ -503,17 +497,73 @@ HTML_MAIN = """
 </html>
 """
 
+# ----- HTML PRO AI PORADNU -----
+# Toto se ukáže, když se klikne na tlačítko "AI Poradna"
+HTML_AI = """
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="utf-8">
+    <title>AI Poradna 🤖</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <script>if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark-mode');</script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); color: #2c3e50; min-height: 100vh; display: flex; align-items: center; justify-content: center; transition: background 0.3s, color 0.3s; }
+        .container { width: 100%; max-width: 600px; background: rgba(255, 255, 255, 0.95); padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); transition: background 0.3s, box-shadow 0.3s;}
+        h2 { margin-top: 0; color: #667eea; font-weight: 800; text-align: center; font-size: 2em;}
+        input { padding: 15px; width: 100%; box-sizing: border-box; border: 2px solid #e2e8f0; border-radius: 8px; margin-bottom: 15px; font-family: inherit; font-size: 1em; outline: none; transition: 0.3s;}
+        input:focus { border-color: #667eea; }
+        button { padding: 15px; width: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1.1em; transition: 0.2s;}
+        button:hover { filter: brightness(1.1); transform: translateY(-2px); }
+        .result { background: #f8fafc; padding: 20px; border-left: 5px solid #667eea; margin-top: 25px; border-radius: 8px; line-height: 1.5; font-size: 1.1em;}
+        .error { background: #fee2e2; padding: 15px; border-left: 5px solid #e74c3c; margin-top: 20px; color: #991b1b; border-radius: 8px;}
+        a.back-link { display: block; margin-top: 20px; font-weight: 600; color: #7f8c8d; text-decoration: none; text-align: center; transition: 0.2s;}
+        a.back-link:hover { color: #2c3e50; }
+        
+        /* Úpravy pro Tmavý Režim */
+        .dark-mode body { background: linear-gradient(135deg, #111827 0%, #1f2937 100%); color: #f3f4f6; }
+        .dark-mode .container { background: rgba(31, 41, 55, 0.95); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .dark-mode input { background: #111827; border-color: #374151; color: white; }
+        .dark-mode .result { background: #111827; border-left-color: #3b82f6; }
+        .dark-mode a.back-link { color: #9ca3af; }
+        .dark-mode a.back-link:hover { color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>AI Poradna 🤖</h2>
+        <p style="text-align: center; color: #7f8c8d; margin-bottom: 20px;">Zeptej se na cokoliv. AI zná i historii nástěnky!</p>
+        <form method="POST" action="/ai">
+            <input type="text" name="query" placeholder="Napiš svůj dotaz..." required> 
+            <button type="submit">Odeslat dotaz</button>
+        </form>
+        {% if answer %}
+            <div class="result">
+                <p style="color: #7f8c8d; font-size: 0.85em; margin-top: 0;"><strong>Tvůj dotaz:</strong> {{ question }}</p>
+                <p style="margin-bottom: 0;">{{ answer }}</p>
+            </div>
+        {% elif error %}
+            <div class="error"><p><strong>Chyba:</strong> {{ error }}</p></div>
+        {% endif %}
+        <a href="/" class="back-link">⬅️ Zpět na Nástěnku</a>
+    </div>
+</body>
+</html>
+"""
+
 
 # ==========================================
 # 6. ROUTOVÁNÍ (Co dělá jaká adresa webu)
 # ==========================================
 
-# Hlavní stránka (Načtení všech zpráv z databáze)
+# Hlavní stránka
 @app.route('/', methods=['GET'])
 def home():
     error = request.args.get('error')
     try: 
-        # Získání dat, řazení nejdřív podle PINu, pak podle času
         vzkazy_z_db = list(kolekce_vzkazu.find().sort([("is_pinned", -1), ("cas_vytvoreni", -1)]))
     except Exception: 
         vzkazy_z_db = []
@@ -531,7 +581,6 @@ def auth():
     if akce == 'register':
         if kolekce_uzivatelu.find_one({"username": username}): return redirect('/?error=Jméno zabrané!')
         
-        # Vytvoření admina (kdo první založí 'admin', je admin)
         role = 'admin' if username.lower() == 'admin' and not kolekce_uzivatelu.find_one({"role": "admin"}) else 'user'
         
         kolekce_uzivatelu.insert_one({"username": username, "password": password, "role": role})
@@ -544,11 +593,10 @@ def auth():
         else: return redirect('/?error=Špatné jméno nebo heslo!')
     return redirect('/')
 
-# Odhlášení ze session
 @app.route('/logout')
 def logout(): session.clear(); return redirect('/')
 
-# Zpracování "Přidat papírek"
+# Přidání vzkazu/hry
 @app.route('/add', methods=['POST'])
 def add_note():
     if 'username' not in session: return redirect('/?error=Musíš být přihlášený!')
@@ -556,7 +604,7 @@ def add_note():
     post_type = request.form.get('post_type', 'normal')
     text = request.form.get('msg', '')
     
-    note_id = uuid.uuid4().hex[:8] # Náhodné ID dokumentu
+    note_id = uuid.uuid4().hex[:8]
     new_note = {
         "id": note_id, "author": session['username'], "timestamp": datetime.now().strftime("%H:%M"),
         "cas_vytvoreni": datetime.now(), "replies": [], "reactions": {},
@@ -564,7 +612,6 @@ def add_note():
         "type": post_type
     }
 
-    # Podle post_type přidáme specifická data pro hry
     if post_type == 'normal':
         if not text: return redirect('/')
         file = request.files.get('image')
@@ -580,19 +627,19 @@ def add_note():
     
     elif post_type == 'dice':
         new_note["dice_state"] = "waiting"
-        new_note["p1_roll"] = random.randint(1, 6) # Hod kostkou na serveru
+        new_note["p1_roll"] = random.randint(1, 6)
         
     elif post_type == 'guess':
         new_note["guess_state"] = "active"
-        new_note["secret_number"] = random.randint(1, 100) # Tajné číslo na serveru
+        new_note["secret_number"] = random.randint(1, 100)
         
     elif post_type == 'bomb':
         new_note["bomb_state"] = "active"
         new_note["cut_wires"] = []
         colors = ['red', 'blue', 'green', 'yellow']
         random.shuffle(colors)
-        new_note["defuse_wire"] = colors[0] # Správný drát
-        new_note["boom_wire"] = colors[1]   # Výbušný drát
+        new_note["defuse_wire"] = colors[0]
+        new_note["boom_wire"] = colors[1]
 
     kolekce_vzkazu.insert_one(new_note)
     return redirect('/')
@@ -642,12 +689,9 @@ def add_reply():
     note_id, text = request.form.get('note_id'), request.form.get('reply_text')
     if not text or not note_id: return redirect('/')
     
-    # 1. Normální přidání odpovědi
     kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": session['username'], "text": text, "timestamp": datetime.now().strftime("%H:%M")}}})
     
     msg = kolekce_vzkazu.find_one({"id": note_id})
-    
-    # 2. Reakce robota na Hádání čísla
     if msg.get('type') == 'guess' and msg.get('guess_state') == 'active':
         try:
             tip, tajne = int(text.strip()), msg['secret_number']
@@ -658,7 +702,6 @@ def add_reply():
                 kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": "🤖 Rozhodčí", "text": f"{smer} než {tip}!", "timestamp": datetime.now().strftime("%H:%M")}}})
         except ValueError: pass 
         
-    # 3. Odpověď umělé inteligence
     elif msg.get('type') == 'normal' and "@AI" in text.upper():
         ai_reply = ask_ai(text.replace("@AI", "").replace("@ai", "").strip() or "Ahoj.")
         kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": "🤖 AI Asistent", "text": ai_reply, "timestamp": datetime.now().strftime("%H:%M")}}})
@@ -679,6 +722,18 @@ def react_note():
     emoji = request.form.get('emoji')
     if emoji in ['👍', '❤️', '😂', '😮']: kolekce_vzkazu.update_one({"id": request.form.get('note_id')}, {"$inc": {f"reactions.{emoji}": 1}})
     return redirect(request.referrer or '/')
+
+# TADY JE VRÁCENÁ TA OPRAVENÁ STRÁNKA PRO AI PORADNU!
+@app.route('/ai', methods=['GET', 'POST'])
+def ai_page():
+    answer, question, error = None, None, None
+    if request.method == 'POST':
+        question = request.form.get('query')
+        answer = ask_ai(question)
+        if answer.startswith("Promiň"):
+            error = answer
+            answer = None
+    return render_template_string(HTML_AI, question=question, answer=answer, error=error)
 
 @app.route('/admin-db')
 def view_database():
