@@ -54,16 +54,13 @@ kolekce_uzivatelu = db.uzivatele # Sem ukládáme registrované lidi
 # ==========================================
 def ask_ai(prompt):
     try:
-        # Než se zeptáme AI, vytáhneme posledních 20 vzkazů, aby věděla, o čem se třída baví
         nedavne_vzkazy = list(kolekce_vzkazu.find().sort("cas_vytvoreni", -1).limit(20))
         kontext = "Historie nástěnky:\n"
         for m in nedavne_vzkazy:
             kontext += f"- {m.get('author', 'Někdo')}: {m.get('text', '')}\n"
 
-        # Příkaz, jak se má AI chovat
         systemovy_pokyn = "Jsi vtipný asistent na třídní nástěnce. Odpovídej stručně.\n" + kontext
 
-        # Odeslání dotazu a čekání na odpověď
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[
@@ -85,30 +82,39 @@ HTML_MAIN = """
     <meta charset="utf-8">
     <title>Třídní Nástěnka ✨</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    
+    <script>
+        if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.classList.add('dark-mode');
+        }
+    </script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         * { box-sizing: border-box; }
-        body { font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 0 0 40px 0; min-height: 100vh; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); color: #2c3e50; }
-        h1 { text-align: center; color: #1a252f; font-weight: 800; font-size: 2.5em; margin-top: 30px; letter-spacing: -1px; padding: 0 10px;}
+        body { font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 0 0 40px 0; min-height: 100vh; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); color: #2c3e50; transition: background 0.3s, color 0.3s; }
+        h1 { text-align: center; color: #1a252f; font-weight: 800; font-size: 2.5em; margin-top: 30px; letter-spacing: -1px; padding: 0 10px; transition: color 0.3s;}
         
-        .auth-bar { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); padding: 12px 20px; text-align: center; font-size: 0.9em; border-bottom: 1px solid rgba(255,255,255,0.5); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .auth-bar { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); padding: 12px 20px; text-align: center; font-size: 0.9em; border-bottom: 1px solid rgba(255,255,255,0.5); box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: background 0.3s;}
         .auth-bar a { color: #e74c3c; font-weight: 600; text-decoration: none; margin-left: 15px; padding: 6px 12px; border-radius: 20px; background: rgba(231, 76, 60, 0.1); transition: 0.2s; display: inline-block;}
         
+        #theme-toggle { background: none; border: none; font-size: 1.5em; cursor: pointer; vertical-align: middle; margin-left: 15px; transition: transform 0.2s; }
+        #theme-toggle:hover { transform: scale(1.1); }
+        
         .controls { text-align: center; margin-bottom: 20px; padding: 0 15px; width: 100%; max-width: 900px; margin-left: auto; margin-right: auto;}
-        .main-form { background: #ffffff; padding: 20px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid #edf2f7; width: 100%; }
+        .main-form { background: #ffffff; padding: 20px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid #edf2f7; width: 100%; transition: background 0.3s, border-color 0.3s;}
         
         .form-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; }
         .form-row-bottom { margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 15px;}
         
-        input[type="text"], input[type="password"] { padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 8px; font-family: inherit; transition: 0.3s; outline: none; flex-grow: 1; }
+        input[type="text"], input[type="password"] { padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 8px; font-family: inherit; transition: 0.3s; outline: none; flex-grow: 1; background: #fff;}
         input[type="text"]:focus { border-color: #3498db; }
         button { padding: 12px 20px; background-color: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: inherit; transition: 0.2s; white-space: nowrap;}
         button:hover { filter: brightness(1.1); transform: translateY(-1px); }
         .ai-btn { padding: 12px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; white-space: nowrap; text-align: center;}
         
-        /* HERNÍ SELEKTOR - ROBUSTNÍ OPRAVA PRO MOBILY */
         .type-selector { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; width: 100%; margin-bottom: 15px;}
-        .type-selector label { display: block; margin: 0; } /* Zajišťuje, aby to byl pevný blok */
+        .type-selector label { display: block; margin: 0; } 
         .type-radio { display: none; }
         .type-label { display: block; padding: 10px 15px; border: 2px solid #e2e8f0; border-radius: 20px; cursor: pointer; font-size: 0.9em; font-weight: bold; color: #7f8c8d; transition: 0.2s; text-align: center; white-space: nowrap;}
         .type-radio:checked + .type-label { background: #2c3e50; color: white; border-color: #2c3e50; transform: scale(1.05); }
@@ -171,21 +177,54 @@ HTML_MAIN = """
         .duel-win { background: #d4edda; color: #155724; }
         .duel-lose { background: #f8d7da; color: #721c24; }
         
-        .meta { font-size: 0.85em; color: #7f8c8d; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; padding-right: 40px;}
-        .note-text { font-size: 1.1em; line-height: 1.5; flex-grow: 1; word-wrap: break-word; color: #34495e; margin-bottom: 15px; }
+        .meta { font-size: 0.85em; color: #7f8c8d; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; padding-right: 40px; transition: color 0.3s;}
+        .note-text { font-size: 1.1em; line-height: 1.5; flex-grow: 1; word-wrap: break-word; color: #34495e; margin-bottom: 15px; transition: color 0.3s;}
         
         .note-image { width: 100%; max-height: 200px; object-fit: cover; border-radius: 10px; margin-bottom: 15px; border: 1px solid #eee; background: #f8f9fa;}
         .note-card.expanded .note-image { max-height: 50vh; object-fit: contain; }
         
         .reactions-container { margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 5px;}
-        .badge { display: inline-block; background: #f1f2f6; padding: 5px 10px; border-radius: 15px; font-size: 0.85em; color: #2c3e50; border: 1px solid #e2e8f0; }
-        .emoji-bar { display: flex; flex-wrap: wrap; gap: 5px; background: #fff; padding: 5px; border-radius: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border: 1px solid #edf2f7;}
+        .badge { display: inline-block; background: #f1f2f6; padding: 5px 10px; border-radius: 15px; font-size: 0.85em; color: #2c3e50; border: 1px solid #e2e8f0; transition: background 0.3s, color 0.3s, border-color 0.3s;}
+        .emoji-bar { display: flex; flex-wrap: wrap; gap: 5px; background: #fff; padding: 5px; border-radius: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border: 1px solid #edf2f7; transition: background 0.3s, border-color 0.3s;}
         .btn-react { background: none; border: none; cursor: pointer; font-size: 1.2em; padding: 4px; border-radius: 50%; transition: 0.2s; }
         
-        .replies { background: #f8fafc; padding: 12px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e2e8f0;}
-        .reply-item { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #edf2f7; word-wrap: break-word;}
+        .replies { background: #f8fafc; padding: 12px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e2e8f0; transition: background 0.3s, border-color 0.3s;}
+        .reply-item { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #edf2f7; word-wrap: break-word; transition: border-color 0.3s;}
         .del-btn { background: rgba(231, 76, 60, 0.1); color: #e74c3c; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-weight: bold; font-size: 0.9em;}
         .del-btn:hover { background: #e74c3c; color: white;}
+
+        /* =======================================
+           TMAVÝ REŽIM (DARK MODE OVERRIDES)
+           ======================================= */
+        .dark-mode body { background: linear-gradient(135deg, #111827 0%, #1f2937 100%); color: #f3f4f6; }
+        .dark-mode h1, .dark-mode h3 { color: #f9fafb; }
+        .dark-mode .auth-bar { background: rgba(31, 41, 55, 0.85); border-color: #374151; }
+        .dark-mode .main-form { background: #1f2937; border-color: #374151; }
+        .dark-mode input[type="text"], .dark-mode input[type="password"] { background: #111827; border-color: #374151; color: #f3f4f6; }
+        .dark-mode .type-label { border-color: #4b5563; color: #9ca3af; }
+        .dark-mode .type-radio:checked + .type-label { background: #3b82f6; border-color: #3b82f6; color: white; }
+        
+        .dark-mode .note-card { background: rgba(31, 41, 55, 0.95); border-color: #374151; }
+        .dark-mode .note-card.duel { background: linear-gradient(135deg, #1f2937 0%, #3f2b1c 100%); border-color: #d35400; }
+        .dark-mode .note-card.guess { background: linear-gradient(135deg, #1f2937 0%, #1a365d 100%); border-color: #2980b9; }
+        .dark-mode .note-card.dice { background: linear-gradient(135deg, #1f2937 0%, #3b1f42 100%); border-color: #8e44ad; }
+        .dark-mode .note-card.bomb { background: linear-gradient(135deg, #1f2937 0%, #4a1c1c 100%); border-color: #c0392b; }
+        
+        .dark-mode .note-text { color: #f3f4f6; }
+        .dark-mode .meta { color: #9ca3af; }
+        .dark-mode .meta b { color: #e5e7eb; }
+        .dark-mode .replies { background: #111827; border-color: #374151; }
+        .dark-mode .reply-item { border-color: #374151; }
+        .dark-mode .reply-text { color: #d1d5db; }
+        .dark-mode .reply-meta { color: #9ca3af; }
+        
+        .dark-mode .badge { background: #374151; color: #f3f4f6; border-color: #4b5563; }
+        .dark-mode .emoji-bar { background: #1f2937; border-color: #374151; }
+        .dark-mode .game-btn, .dark-mode .duel-label { background: #1f2937; border-color: #4b5563; color: #f3f4f6; }
+        .dark-mode hr { border-top-color: #374151 !important; }
+        .dark-mode #duel-options, .dark-mode #dice-options, .dark-mode #guess-options, .dark-mode #bomb-options { background: #111827 !important; border-color: #4b5563 !important; }
+        .dark-mode .expand-btn { background: rgba(31, 41, 55, 0.9); border-color: #4b5563; color: white;}
+        .dark-mode .note-image { border-color: #374151; background: #111827; }
 
         /* =======================================
            ÚPRAVY PRO MOBILNÍ TELEFONY
@@ -207,27 +246,33 @@ HTML_MAIN = """
             .del-btn { width: 100%; margin-top: 5px; }
             
             /* NEPRŮSTŘELNÁ OPRAVA TLAČÍTEK HER PRO MOBIL */
-            .type-selector { 
-                display: flex !important; 
-                flex-wrap: wrap; 
-                gap: 8px; 
-            }
-            .type-selector label { 
-                flex: 1 1 45%; /* Každé tlačítko zabere necelou půlku řádku */
-                margin: 0; 
-            }
-            .type-selector label:last-child { 
-                flex: 1 1 100%; /* Bomba se roztáhne přes celou šířku dolů */
-            }
-            .type-label { 
-                width: 100%; 
-                padding: 12px 5px; 
-                font-size: 0.85em; 
-                white-space: normal; /* Dovolí textu se zalomit, kdyby se nevešel */
-            }
+            .type-selector { display: flex !important; flex-wrap: wrap; gap: 8px; }
+            .type-selector label { flex: 1 1 45%; margin: 0; }
+            .type-selector label:last-child { flex: 1 1 100%; }
+            .type-label { width: 100%; padding: 12px 5px; font-size: 0.85em; white-space: normal; }
         }
     </style>
     <script>
+        // LOGIKA PRO PŘEPÍNÁNÍ TMAVÉHO REŽIMU
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark-mode');
+            let theme = 'light';
+            if (document.documentElement.classList.contains('dark-mode')) {
+                theme = 'dark';
+                document.getElementById('theme-toggle').innerText = '☀️';
+            } else {
+                document.getElementById('theme-toggle').innerText = '🌙';
+            }
+            localStorage.setItem('theme', theme);
+        }
+        
+        // Nastavení správné ikonky po načtení stránky
+        window.onload = function() {
+            if (document.documentElement.classList.contains('dark-mode')) {
+                document.getElementById('theme-toggle').innerText = '☀️';
+            }
+        };
+
         // Přepíná viditelnost formulářů podle toho, jakou minihru uživatel nahoře zaklikne
         function toggleForms() {
             var type = document.querySelector('input[name="post_type"]:checked').value;
@@ -239,11 +284,11 @@ HTML_MAIN = """
         }
         
         // FOCUS MÓD: Funkce pro zvětšení papírku
-        let isExpanded = false; // Pamatuje si, jestli je něco zvětšené
+        let isExpanded = false; 
         function openCard(id) {
             document.querySelectorAll('.note-card.expanded').forEach(c => c.classList.remove('expanded'));
-            document.getElementById('card-' + id).classList.add('expanded'); // Zvětší konkrétní lístek
-            document.getElementById('overlay').classList.add('active'); // Ztmaví pozadí
+            document.getElementById('card-' + id).classList.add('expanded'); 
+            document.getElementById('overlay').classList.add('active'); 
             isExpanded = true;
         }
         // FOCUS MÓD: Funkce pro zavření papírku
@@ -264,6 +309,7 @@ HTML_MAIN = """
         {% else %}
             <span>Nejsi přihlášen. Můžeš číst, pro psaní se musíš zaregistrovat.</span>
         {% endif %}
+        <button id="theme-toggle" onclick="toggleTheme()" title="Přepnout tmavý režim">🌙</button>
     </div>
 
     <h1>Třídní Nástěnka ✨</h1>
@@ -346,7 +392,7 @@ HTML_MAIN = """
                     
                 {% elif msg.type == 'dice' %}
                     <div class="game-title" style="color: #8e44ad;">🎲 SOUBOJ V KOSTKÁCH 🎲</div>
-                    <div style="text-align: center; font-size: 1.5em; margin: 10px 0;"><b>{{ msg.author }}</b> hodil: <span style="background: #e2e8f0; padding: 5px 15px; border-radius: 8px;">{{ msg.p1_roll }}</span></div>
+                    <div style="text-align: center; font-size: 1.5em; margin: 10px 0;"><b>{{ msg.author }}</b> hodil: <span style="background: #e2e8f0; padding: 5px 15px; border-radius: 8px; color: #333;">{{ msg.p1_roll }}</span></div>
                     {% if msg.dice_state == 'waiting' %}
                         {% if session.username and session.username != msg.author %}
                             <form method="POST" action="/play_dice" style="text-align: center;">
@@ -355,7 +401,7 @@ HTML_MAIN = """
                             </form>
                         {% endif %}
                     {% else %}
-                        <div style="text-align: center; font-size: 1.5em; margin: 10px 0;"><b>{{ msg.p2 }}</b> hodil: <span style="background: #e2e8f0; padding: 5px 15px; border-radius: 8px;">{{ msg.p2_roll }}</span></div>
+                        <div style="text-align: center; font-size: 1.5em; margin: 10px 0;"><b>{{ msg.p2 }}</b> hodil: <span style="background: #e2e8f0; padding: 5px 15px; border-radius: 8px; color: #333;">{{ msg.p2_roll }}</span></div>
                         <div class="duel-result {% if msg.winner == 'TIE' %}duel-tie{% else %}duel-win{% endif %}">{% if msg.winner == 'TIE' %}Remíza! 🤝{% else %}🏆 Vítěz: {{ msg.winner }}!{% endif %}</div>
                     {% endif %}
 
@@ -436,12 +482,9 @@ HTML_MAIN = """
     <script>
         setInterval(function() {
             let active = document.activeElement;
-            // Detekuje, jestli zrovna nepíšeš do formuláře
             let isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'PASSWORD');
             
-            // Nepřenačítá data, pokud zrovna píšeš, nebo pokud máš rozkliknutý papírek přes půl obrazovky (isExpanded)
             if (!isTyping && !isExpanded) {
-                // cache: no-store přikazuje prohlížeči, ať si nevymýšlí a stáhne čistá data ze serveru
                 fetch(window.location.href, { cache: "no-store" })
                     .then(response => response.text())
                     .then(html => {
@@ -449,7 +492,6 @@ HTML_MAIN = """
                         let doc = parser.parseFromString(html, 'text/html');
                         let newBoard = doc.getElementById('board-container');
                         let currentBoard = document.getElementById('board-container');
-                        // Vymění nástěnku za novou, jen pokud se na ní něco změnilo
                         if (newBoard && currentBoard.innerHTML !== newBoard.innerHTML) {
                             currentBoard.innerHTML = newBoard.innerHTML;
                         }
@@ -492,13 +534,11 @@ def auth():
         # Vytvoření admina (kdo první založí 'admin', je admin)
         role = 'admin' if username.lower() == 'admin' and not kolekce_uzivatelu.find_one({"role": "admin"}) else 'user'
         
-        # POZOR: Pro školní účely ukládáme heslo v čistém textu, aby šlo číst v databázi!
         kolekce_uzivatelu.insert_one({"username": username, "password": password, "role": role})
         session['username'] = username; session['role'] = role
         
     elif akce == 'login':
         user = kolekce_uzivatelu.find_one({"username": username})
-        # Kontrola hesla podle uloženého čistého textu
         if user and user['password'] == password:
             session['username'] = user['username']; session['role'] = user['role']
         else: return redirect('/?error=Špatné jméno nebo heslo!')
@@ -530,7 +570,6 @@ def add_note():
         file = request.files.get('image')
         new_note["text"] = text
         if file and file.filename: new_note["image"] = "data:" + file.content_type + ";base64," + base64.b64encode(file.read()).decode('utf-8')
-        # Odchytnutí @AI
         if "@AI" in text.upper():
             ai_reply = ask_ai(text.replace("@AI", "").replace("@ai", "").strip() or "Ahoj.")
             new_note["replies"].append({"author": "🤖 AI Asistent", "text": ai_reply, "timestamp": datetime.now().strftime("%H:%M")})
@@ -566,7 +605,6 @@ def add_note():
 def play_duel():
     if 'username' not in session: return redirect('/')
     duel = kolekce_vzkazu.find_one({"id": request.form.get('note_id'), "type": "duel", "duel_state": "waiting"})
-    # Kontrola aby hráč nehrál proti sobě
     if duel and duel['author'] != session['username']:
         p1, p2 = duel['p1_move'], request.form.get('move')
         win = 'TIE' if p1 == p2 else duel['author'] if (p1=='🪨' and p2=='✂️') or (p1=='✂️' and p2=='📄') or (p1=='📄' and p2=='🪨') else session['username']
@@ -618,7 +656,7 @@ def add_reply():
             else:
                 smer = "⬆️ víc" if tip < tajne else "⬇️ míň"
                 kolekce_vzkazu.update_one({"id": note_id}, {"$push": {"replies": {"author": "🤖 Rozhodčí", "text": f"{smer} než {tip}!", "timestamp": datetime.now().strftime("%H:%M")}}})
-        except ValueError: pass # Ignoruje se, pokud uživatel napíše písmena
+        except ValueError: pass 
         
     # 3. Odpověď umělé inteligence
     elif msg.get('type') == 'normal' and "@AI" in text.upper():
@@ -633,27 +671,22 @@ def add_reply():
 def delete_note():
     if 'username' not in session: return redirect('/')
     vzkaz = kolekce_vzkazu.find_one({"id": request.form.get('note_id')})
-    # Smazat může jen ten, kdo to vytvořil, nebo Admin
     if vzkaz and (vzkaz['author'] == session['username'] or session.get('role') == 'admin'): kolekce_vzkazu.delete_one({"id": vzkaz['id']})
     return redirect(request.referrer or '/')
 
 @app.route('/react', methods=['POST'])
 def react_note():
     emoji = request.form.get('emoji')
-    # $inc znamená "Zvyš číslo o 1"
     if emoji in ['👍', '❤️', '😂', '😮']: kolekce_vzkazu.update_one({"id": request.form.get('note_id')}, {"$inc": {f"reactions.{emoji}": 1}})
     return redirect(request.referrer or '/')
 
 @app.route('/admin-db')
 def view_database():
-    # Zabezpečení stránky!
     if session.get('role') != 'admin': return "<h1 style='color:red;'>Přístup odepřen! Nejsi admin.</h1>", 403
     
     html_db = """<!DOCTYPE html><html lang="cs"><head><meta charset="utf-8"><title>Tajný pohled</title><style>body { font-family: sans-serif; padding: 20px; background: #1e1e1e; color: #fff; } table { border-collapse: collapse; width: 100%; margin-bottom: 40px; background: #2d2d2d; box-shadow: 0 4px 8px rgba(0,0,0,0.5);} th, td { border: 1px solid #444; padding: 12px; text-align: left; vertical-align: top;} th { background: #3498db; color: #fff; font-size: 1.1em;} a.back { color: #fff; background: #e74c3c; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; margin-bottom: 20px;} .comment-box { background: #1a1a1a; padding: 10px; border-radius: 5px; margin-top: 5px; font-size: 0.9em; border-left: 3px solid #3498db;}</style></head><body><h1>🕵️‍♂️ Databáze v MongoDB</h1><a href="/" class="back">⬅️ Zpět</a><h2>Kolekce: Uživatelé</h2><table><tr><th>Jméno</th><th>Role</th><th>Čisté heslo 🔑</th></tr>{% for u in uzivatele %}<tr><td><b>{{ u.username }}</b></td><td>{{ u.role }}</td><td style="color: #f1c40f; font-family: monospace; font-size: 1.1em;">{{ u.password }}</td></tr>{% endfor %}</table><h2>Kolekce: Vzkazy</h2><table><tr><th>Typ</th><th>Autor</th><th>Hlavní zpráva / Stav hry</th><th>Komentáře 💬</th></tr>{% for v in vzkazy %}<tr><td><span style="background: #555; padding: 3px 8px; border-radius: 10px; font-size: 0.8em;">{{ v.type }}</span></td><td><b>{{ v.author }}</b></td><td>{% if v.text %}{{ v.text }}<br>{% endif %} {% if v.type == 'guess' %}<span style="color: #3498db;">Tajné číslo je: <b>{{ v.secret_number }}</b></span>{% endif %}</td><td>{% if v.replies %}{% for r in v.replies %}<div class="comment-box"><b style="color: #2ecc71;">{{ r.author }}</b> [{{ r.timestamp }}]: {{ r.text }}</div>{% endfor %}{% else %}<i style="color: #777;">Zatím bez komentářů</i>{% endif %}</td></tr>{% endfor %}</table></body></html>"""
     
-    # Výpis dat přímo do tabulek
     return render_template_string(html_db, uzivatele=list(kolekce_uzivatelu.find()), vzkazy=list(kolekce_vzkazu.find().sort("cas_vytvoreni", -1)))
 
 if __name__ == '__main__':
-    # Spuštění aplikace
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
