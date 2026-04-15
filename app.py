@@ -78,7 +78,6 @@ def ask_ai(prompt):
 # ==========================================
 # 5. VZHLED WEBU (HTML, CSS a JavaScript)
 # ==========================================
-# Proměnná HTML_MAIN obsahuje celý vizuál (barvy, animace, tlačítka a Focus mód).
 HTML_MAIN = """
 <!DOCTYPE html>
 <html lang="cs">
@@ -107,9 +106,11 @@ HTML_MAIN = """
         button:hover { filter: brightness(1.1); transform: translateY(-1px); }
         .ai-btn { padding: 12px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; white-space: nowrap; text-align: center;}
         
+        /* HERNÍ SELEKTOR - ROBUSTNÍ OPRAVA PRO MOBILY */
         .type-selector { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; width: 100%; margin-bottom: 15px;}
+        .type-selector label { display: block; margin: 0; } /* Zajišťuje, aby to byl pevný blok */
         .type-radio { display: none; }
-        .type-label { padding: 8px 12px; border: 2px solid #e2e8f0; border-radius: 20px; cursor: pointer; font-size: 0.9em; font-weight: bold; color: #7f8c8d; transition: 0.2s;}
+        .type-label { display: block; padding: 10px 15px; border: 2px solid #e2e8f0; border-radius: 20px; cursor: pointer; font-size: 0.9em; font-weight: bold; color: #7f8c8d; transition: 0.2s; text-align: center; white-space: nowrap;}
         .type-radio:checked + .type-label { background: #2c3e50; color: white; border-color: #2c3e50; transform: scale(1.05); }
 
         .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; padding: 10px 20px; max-width: 1400px; margin: 0 auto; }
@@ -187,7 +188,7 @@ HTML_MAIN = """
         .del-btn:hover { background: #e74c3c; color: white;}
 
         /* =======================================
-           CSS OPRAVY PRO MOBIL (Tady byla chyba!)
+           ÚPRAVY PRO MOBILNÍ TELEFONY
            ======================================= */
         @media (max-width: 600px) {
             h1 { font-size: 2em; margin-top: 20px; }
@@ -205,22 +206,24 @@ HTML_MAIN = """
             .card-actions { flex-direction: column; align-items: stretch; }
             .del-btn { width: 100%; margin-top: 5px; }
             
-            /* ZCELA NOVÝ GRID PRO TLAČÍTKA HER - Dokonalé zarovnání! */
+            /* NEPRŮSTŘELNÁ OPRAVA TLAČÍTEK HER PRO MOBIL */
             .type-selector { 
-                display: grid !important; 
-                grid-template-columns: 1fr 1fr; /* Dva sloupce vedle sebe */
-                gap: 10px; 
+                display: flex !important; 
+                flex-wrap: wrap; 
+                gap: 8px; 
             }
-            .type-selector label { margin: 0; }
-            /* Poslední tlačítko (Bomba) se roztáhne přes oba sloupce */
-            .type-selector label:last-child { grid-column: span 2; }
-            
+            .type-selector label { 
+                flex: 1 1 45%; /* Každé tlačítko zabere necelou půlku řádku */
+                margin: 0; 
+            }
+            .type-selector label:last-child { 
+                flex: 1 1 100%; /* Bomba se roztáhne přes celou šířku dolů */
+            }
             .type-label { 
-                display: block; 
                 width: 100%; 
-                text-align: center; 
-                padding: 10px 5px; 
+                padding: 12px 5px; 
                 font-size: 0.85em; 
+                white-space: normal; /* Dovolí textu se zalomit, kdyby se nevešel */
             }
         }
     </style>
