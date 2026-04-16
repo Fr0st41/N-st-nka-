@@ -68,7 +68,7 @@ def ask_ai(prompt):
 # 5. VZHLED WEBU (HTML & CSS)
 # ==========================================
 
-# ----- HTML PRO NÁSTĚNKU -----
+
 HTML_MAIN = """
 <!DOCTYPE html>
 <html lang="cs">
@@ -556,7 +556,6 @@ HTML_AI = """
 # 6. ROUTOVÁNÍ 
 # ==========================================
 
-# Hlavní stránka
 @app.route('/', methods=['GET'])
 def home():
     error = request.args.get('error')
