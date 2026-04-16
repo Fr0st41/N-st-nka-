@@ -1,5 +1,5 @@
 # ==========================================
-# 1. IMPORTY (Nástroje, které aplikace potřebuje)
+# 1. IMPORTY 
 # ==========================================
 import os                  
 import random              
@@ -15,9 +15,7 @@ from openai import OpenAI
 import httpx
 from pymongo import MongoClient
 
-# Založení aplikace
-app = Flask(__name__)
-# Tajný klíč pro bezpečné přihlašování 
+app = Flask(__name__) 
 app.secret_key = os.urandom(24) 
 
 # ==========================================
@@ -44,7 +42,7 @@ kolekce_vzkazu = db.vzkazy
 kolekce_uzivatelu = db.uzivatele 
 
 # ==========================================
-# 4. FUNKCE PRO AI (S PAMĚTÍ - RAG)
+# 4. FUNKCE PRO AI 
 # ==========================================
 def ask_ai(prompt):
     try:
@@ -498,7 +496,6 @@ HTML_MAIN = """
 """
 
 # ----- HTML PRO AI PORADNU -----
-# Toto se ukáže, když se klikne na tlačítko "AI Poradna"
 HTML_AI = """
 <!DOCTYPE html>
 <html lang="cs">
@@ -556,7 +553,7 @@ HTML_AI = """
 
 
 # ==========================================
-# 6. ROUTOVÁNÍ (Co dělá jaká adresa webu)
+# 6. ROUTOVÁNÍ 
 # ==========================================
 
 # Hlavní stránka
@@ -569,7 +566,6 @@ def home():
         vzkazy_z_db = []
     return render_template_string(HTML_MAIN, messages=vzkazy_z_db, error=error)
 
-# Zpracování registrace a loginu
 @app.route('/auth', methods=['POST'])
 def auth():
     akce = request.form.get('action')
@@ -596,7 +592,6 @@ def auth():
 @app.route('/logout')
 def logout(): session.clear(); return redirect('/')
 
-# Přidání vzkazu/hry
 @app.route('/add', methods=['POST'])
 def add_note():
     if 'username' not in session: return redirect('/?error=Musíš být přihlášený!')
@@ -681,7 +676,7 @@ def cut_wire():
     return redirect('/')
 
 # ==========================================
-# 8. ODPOVĚDI (A Robot pro hádání čísel)
+# 8. ODPOVĚDI
 # ==========================================
 @app.route('/reply', methods=['POST'])
 def add_reply():
@@ -723,7 +718,6 @@ def react_note():
     if emoji in ['👍', '❤️', '😂', '😮']: kolekce_vzkazu.update_one({"id": request.form.get('note_id')}, {"$inc": {f"reactions.{emoji}": 1}})
     return redirect(request.referrer or '/')
 
-# TADY JE VRÁCENÁ TA OPRAVENÁ STRÁNKA PRO AI PORADNU!
 @app.route('/ai', methods=['GET', 'POST'])
 def ai_page():
     answer, question, error = None, None, None
